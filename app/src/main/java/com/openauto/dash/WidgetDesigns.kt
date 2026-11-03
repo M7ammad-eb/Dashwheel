@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -25,7 +26,7 @@ import androidx.compose.ui.unit.dp
 internal enum class FaceLayout { HERO, ARC, RING, BARS, STATS, TERMINAL, DIAL, FLAP, ORB, LIQUID, DOTS, POSTER, DUO, ISLAND, COCKPIT, TRIANGLES, BLADE, LIGHT_BAR, LANE, TREND, PULSE, CONTOUR }
 
 /** The material a design is drawn in. THEME follows the dashboard theme; the rest bring their own colours. */
-internal enum class FaceLookKind { THEME, LCD, AMBER, NEON, PAPER, GLASS, CARBON, CHROME, FLAP, DOTS, COPPER, PETROL, NAVY_GOLD, SAGE, CRIMSON, GRAPHITE }
+internal enum class FaceLookKind { THEME, OPEN, LCD, AMBER, NEON, PAPER, GLASS, CARBON, CHROME, FLAP, DOTS, COPPER, PETROL, NAVY_GOLD, SAGE, CRIMSON, GRAPHITE }
 
 /**
  * A tile's design. Names are persisted with the tile, so never rename an
@@ -63,6 +64,8 @@ enum class WidgetDesign(
     POSTER(R.string.design_poster, R.string.design_poster_desc, FaceLayout.POSTER, FaceLookKind.THEME, glanceable = false),
     DUO(R.string.design_duo, R.string.design_duo_desc, FaceLayout.DUO, FaceLookKind.THEME),
     ISLAND(R.string.design_island, R.string.design_island_desc, FaceLayout.ISLAND, FaceLookKind.THEME),
+    // No panel and no rim: the reading sits on the page, what the Open look puts on every widget.
+    OPEN(R.string.design_open, R.string.design_open_desc, FaceLayout.HERO, FaceLookKind.OPEN),
     // The copper set, after the latest Cupra cars (WidgetFacesCopper.kt).
     COPPER_COCKPIT(R.string.design_copper_cockpit, R.string.design_copper_cockpit_desc, FaceLayout.COCKPIT, FaceLookKind.COPPER),
     TRI_LED(R.string.design_tri_led, R.string.design_tri_led_desc, FaceLayout.TRIANGLES, FaceLookKind.PETROL),
@@ -355,6 +358,9 @@ internal fun faceLook(kind: FaceLookKind): FaceLook = when (kind) {
         fill = if (DashColors.Glass) DashColors.haze(0.07f) else DashColors.CardHi, onAccent = DashColors.OnAccent,
         border = null, radius = 24.dp, font = Sans, numFont = Sans, numWeight = FontWeight.Bold,
         glow = if (DashColors.Glow > 0f) DashColors.Accent.copy(alpha = 0.35f * DashColors.Glow) else null
+    )
+    FaceLookKind.OPEN -> faceLook(FaceLookKind.THEME).copy(
+        kind = kind, background = SolidColor(Color.Transparent), fill = Color.Transparent, border = null
     )
     FaceLookKind.LCD -> FaceLook(
         kind, background = Brush.verticalGradient(listOf(Color(0xFF122010), Color(0xFF0B1509))),

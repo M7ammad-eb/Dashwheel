@@ -123,6 +123,8 @@
     <string name="dash_theme_sporty_desc">Rotes Performance-Cockpit</string>
     <string name="dash_theme_floating">Schwebend</string>
     <string name="dash_theme_floating_desc">Ohne Kachelhintergrund: Widgets und Symbole direkt auf dem Hintergrund</string>
+    <string name="dash_theme_open">Offen</string>
+    <string name="dash_theme_open_desc">Jedes Widget neu gezeichnet, ohne Hintergrund und ohne Rahmen, direkt auf dem Hintergrund</string>
     <string name="dash_theme_orbit">Orbit</string>
     <string name="dash_theme_orbit_desc">Alles rund: drehende Schallplatte, Ringanzeigen, Blasen</string>
     <string name="dash_theme_cockpit">Cockpit</string>

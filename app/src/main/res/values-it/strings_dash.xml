@@ -123,6 +123,8 @@
     <string name="dash_theme_sporty_desc">Cockpit sportivo rosso</string>
     <string name="dash_theme_floating">Fluttuante</string>
     <string name="dash_theme_floating_desc">Senza sfondo dei riquadri: widget e icone poggiano sullo sfondo</string>
+    <string name="dash_theme_open">Aperto</string>
+    <string name="dash_theme_open_desc">Ogni widget ridisegnato senza sfondo né bordo, direttamente sullo sfondo</string>
     <string name="dash_theme_orbit">Orbita</string>
     <string name="dash_theme_orbit_desc">Tutto rotondo: un disco che gira, indicatori ad anello, bolle</string>
     <string name="dash_theme_cockpit">Cockpit</string>

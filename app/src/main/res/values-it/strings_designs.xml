@@ -33,6 +33,8 @@
     <string name="design_duo_desc">Un blocco di colore per il numero, i dettagli accanto.</string>
     <string name="design_island">Isola</string>
     <string name="design_island_desc">Una capsula nera sospesa con immagine e comandi.</string>
+    <string name="design_open">Aperto</string>
+    <string name="design_open_desc">Senza sfondo né bordo: il valore poggia sulla pagina.</string>
     <string name="design_copper_cockpit">Cockpit rame</string>
     <string name="design_copper_cockpit_desc">Lame color rame inclinate girano attorno a un quadro sportivo, nero con angoli tagliati.</string>
     <string name="design_tri_led">Tri-LED</string>

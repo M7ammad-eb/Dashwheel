@@ -145,6 +145,8 @@
     <string name="dash_theme_sporty_desc">Piros sportpilótafülke</string>
     <string name="dash_theme_floating">Lebegő</string>
     <string name="dash_theme_floating_desc">Nincs csempeháttér: a widgetek és ikonok közvetlenül a háttéren ülnek</string>
+    <string name="dash_theme_open">Nyitott</string>
+    <string name="dash_theme_open_desc">Minden widget háttér és keret nélkül, közvetlenül a háttéren</string>
     <string name="dash_theme_orbit">Orbit</string>
     <string name="dash_theme_orbit_desc">Minden kerek: forgó hanglemez, gyűrűs műszerek, buborékok</string>
     <string name="dash_theme_cockpit">Cockpit</string>

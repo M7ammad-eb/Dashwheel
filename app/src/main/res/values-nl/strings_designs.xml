@@ -33,6 +33,8 @@
     <string name="design_duo_desc">Een kleurvlak voor het getal, details ernaast.</string>
     <string name="design_island">Eiland</string>
     <string name="design_island_desc">Een zwevende zwarte capsule met beeld en knoppen.</string>
+    <string name="design_open">Open</string>
+    <string name="design_open_desc">Geen achtergrond en geen rand: de waarde staat op de pagina.</string>
     <string name="design_copper_cockpit">Koper-cockpit</string>
     <string name="design_copper_cockpit_desc">Schuine koperen lamellen lopen rond een sportief instrument, zwart met afgesneden hoeken.</string>
     <string name="design_tri_led">Tri-LED</string>

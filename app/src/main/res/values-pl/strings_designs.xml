@@ -33,6 +33,8 @@
     <string name="design_duo_desc">Blok koloru na liczbę, szczegóły obok.</string>
     <string name="design_island">Wyspa</string>
     <string name="design_island_desc">Unosząca się czarna kapsuła z obrazem i przyciskami.</string>
+    <string name="design_open">Otwarty</string>
+    <string name="design_open_desc">Bez tła i bez ramki: odczyt leży na stronie.</string>
     <string name="design_copper_cockpit">Miedziany kokpit</string>
     <string name="design_copper_cockpit_desc">Skośne miedziane ostrza biegną wokół sportowego zegara, czarnego ze ściętymi rogami.</string>
     <string name="design_tri_led">Tri-LED</string>

@@ -33,6 +33,8 @@
     <string name="design_duo_desc">Un bloque de color para el número, los detalles al lado.</string>
     <string name="design_island">Isla</string>
     <string name="design_island_desc">Una cápsula negra flotante con imagen y controles.</string>
+    <string name="design_open">Abierto</string>
+    <string name="design_open_desc">Sin fondo ni borde: la lectura queda sobre la página.</string>
     <string name="design_copper_cockpit">Cockpit cobre</string>
     <string name="design_copper_cockpit_desc">Láminas de cobre inclinadas recorren un cuadro deportivo, negro con esquinas cortadas.</string>
     <string name="design_tri_led">Tri-LED</string>

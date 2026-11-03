@@ -145,6 +145,8 @@
     <string name="dash_theme_sporty_desc">Красный спортивный кокпит</string>
     <string name="dash_theme_floating">Парящая</string>
     <string name="dash_theme_floating_desc">Плитки без фона: виджеты и значки прямо на фоне</string>
+    <string name="dash_theme_open">Открытая</string>
+    <string name="dash_theme_open_desc">Каждый виджет без фона и рамки, прямо на фоне</string>
     <string name="dash_theme_orbit">Орбита</string>
     <string name="dash_theme_orbit_desc">Всё круглое: вращающаяся пластинка, кольцевые шкалы, пузыри</string>
     <string name="dash_theme_cockpit">Кокпит</string>

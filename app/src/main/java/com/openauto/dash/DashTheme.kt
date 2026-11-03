@@ -66,7 +66,8 @@ enum class DashThemeMode(@StringRes val titleRes: Int, @StringRes val descriptio
     CLAY(R.string.dash_theme_clay, R.string.dash_theme_clay_desc),
     CHROME(R.string.dash_theme_chrome, R.string.dash_theme_chrome_desc),
     SPATIAL(R.string.dash_theme_spatial, R.string.dash_theme_spatial_desc),
-    PAPER(R.string.dash_theme_paper, R.string.dash_theme_paper_desc)
+    PAPER(R.string.dash_theme_paper, R.string.dash_theme_paper_desc),
+    OPEN(R.string.dash_theme_open, R.string.dash_theme_open_desc)
 }
 
 /** Dark or light version of the theme; [AUTO] follows the car's day/night mode. */
@@ -114,6 +115,7 @@ enum class DashSkin { STANDARD, ORBIT, COCKPIT, HORIZON, TAPE_DECK, CANVAS, FUTU
  * behind icons, chips and list rows (see itemFill), so content sits straight on
  * the page background; Card / CardHi still colour dialogs and buttons. [Skin]
  * picks a whole-design variant; skins are bare, their widgets draw their own shapes.
+ * [Open] redraws every built-in widget in [WidgetDesign.OPEN] unless the tile picked a design of its own.
  * [Light] marks the day version of a theme: dark text on a pale page, so
  * anything that brightens with white (glass haze, highlights) must darken instead.
  * Immutable: every field is a val, and [AccentInk] is worked out once from them.
@@ -138,7 +140,8 @@ data class DashPalette(
     val Font: DashFont = DashFont.SANS,
     val HeroWeight: FontWeight = FontWeight.ExtraBold,
     /** What the middle of the standard bar shows. */
-    val BarStyle: DashBarStyle = DashBarStyle.STANDARD
+    val BarStyle: DashBarStyle = DashBarStyle.STANDARD,
+    val Open: Boolean = false
 ) {
     /**
      * [Accent] for words (hints, links, a tile's "tap to…"): the accent itself
@@ -739,6 +742,8 @@ internal fun paletteFor(mode: DashThemeMode, light: Boolean): DashPalette = when
     DashThemeMode.CHROME -> if (light) ChromeLightPalette else ChromePalette
     DashThemeMode.SPATIAL -> if (light) SpatialLightPalette else SpatialPalette
     DashThemeMode.PAPER -> if (light) PaperLightPalette else PaperPalette
+    // Open: Floating's page, with every widget redrawn frameless (TileContent).
+    DashThemeMode.OPEN -> (if (light) FloatingLightPalette else FloatingPalette).copy(Open = true)
 }
 
 /**
@@ -852,6 +857,7 @@ object DashColors {
     val Effects get() = effectsLevel
     val Original get() = current.Original
     val Bare get() = current.Bare
+    val Open get() = current.Open
     val BackgroundStops get() = current.BackgroundStops
     val Skin get() = current.Skin
     val Light get() = current.Light

@@ -100,7 +100,7 @@ internal val LookFamilies: Map<LookFamily, List<DashThemeMode>> = linkedMapOf(
     ),
     LookFamily.COLOURS to listOf(
         DashThemeMode.AUTO, DashThemeMode.ORIGINAL, DashThemeMode.AURORA, DashThemeMode.DARK_GLASS,
-        DashThemeMode.NEON_DARK, DashThemeMode.SPORTY, DashThemeMode.CYBER_SPORT, DashThemeMode.FLOATING,
+        DashThemeMode.NEON_DARK, DashThemeMode.SPORTY, DashThemeMode.CYBER_SPORT, DashThemeMode.FLOATING, DashThemeMode.OPEN,
         DashThemeMode.CLEAN_LIGHT, DashThemeMode.NORDIC, DashThemeMode.ZENITH, DashThemeMode.MISTRAL,
         DashThemeMode.LUXURY, DashThemeMode.ECO_LEAF
     )

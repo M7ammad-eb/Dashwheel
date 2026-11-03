@@ -33,6 +33,8 @@
     <string name="design_duo_desc">A block of colour for the number, details beside it.</string>
     <string name="design_island">Island</string>
     <string name="design_island_desc">A floating black capsule with picture and controls.</string>
+    <string name="design_open">Open</string>
+    <string name="design_open_desc">No background and no border: the reading sits on the page.</string>
     <string name="design_copper_cockpit">Copper cockpit</string>
     <string name="design_copper_cockpit_desc">Slanted copper blades sweep round a sport cluster, black with sharp cut corners.</string>
     <string name="design_tri_led">Tri-LED</string>

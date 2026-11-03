@@ -123,6 +123,8 @@
     <string name="dash_theme_sporty_desc">Rode sportcockpit</string>
     <string name="dash_theme_floating">Zwevend</string>
     <string name="dash_theme_floating_desc">Geen tegelachtergrond: widgets en pictogrammen staan op de achtergrond</string>
+    <string name="dash_theme_open">Open</string>
+    <string name="dash_theme_open_desc">Elke widget opnieuw getekend zonder achtergrond en zonder rand, direct op de achtergrond</string>
     <string name="dash_theme_orbit">Orbit</string>
     <string name="dash_theme_orbit_desc">Alles rond: een draaiende plaat, ringmeters, bellen</string>
     <string name="dash_theme_cockpit">Cockpit</string>

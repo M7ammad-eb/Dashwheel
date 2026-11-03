@@ -33,6 +33,8 @@
     <string name="design_duo_desc">Spalvos blokas skaičiui, detalės šalia.</string>
     <string name="design_island">Sala</string>
     <string name="design_island_desc">Plūduriuojanti juoda kapsulė su vaizdu ir valdikliais.</string>
+    <string name="design_open">Atviras</string>
+    <string name="design_open_desc">Be fono ir rėmelio: rodmuo tiesiai ant puslapio.</string>
     <string name="design_copper_cockpit">Varinė kabina</string>
     <string name="design_copper_cockpit_desc">Pasvirę variniai ašmenys aplink sportinį skydą, juodą su aštriais nukirstais kampais.</string>
     <string name="design_tri_led">Tri-LED</string>

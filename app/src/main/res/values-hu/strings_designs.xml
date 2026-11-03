@@ -33,6 +33,8 @@
     <string name="design_duo_desc">Színes blokk a számnak, mellette a részletek.</string>
     <string name="design_island">Sziget</string>
     <string name="design_island_desc">Lebegő fekete kapszula képpel és vezérlőkkel.</string>
+    <string name="design_open">Nyitott</string>
+    <string name="design_open_desc">Háttér és keret nélkül: az érték közvetlenül az oldalon.</string>
     <string name="design_copper_cockpit">Réz cockpit</string>
     <string name="design_copper_cockpit_desc">Ferde rézlapok ívelnek egy sportos műszeregység körül, fekete, éles levágott sarkokkal.</string>
     <string name="design_tri_led">Tri-LED</string>

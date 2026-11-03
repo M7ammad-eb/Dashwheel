@@ -33,6 +33,8 @@
     <string name="design_duo_desc">Цветной блок для числа, подробности рядом.</string>
     <string name="design_island">Остров</string>
     <string name="design_island_desc">Парящая чёрная капсула с картинкой и кнопками.</string>
+    <string name="design_open">Открытый</string>
+    <string name="design_open_desc">Без фона и рамки: показание прямо на странице.</string>
     <string name="design_copper_cockpit">Медный кокпит</string>
     <string name="design_copper_cockpit_desc">Наклонные медные лопасти вокруг спортивной панели приборов, чёрной со срезанными углами.</string>
     <string name="design_tri_led">Tri-LED</string>
