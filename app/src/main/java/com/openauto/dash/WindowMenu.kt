@@ -58,6 +58,8 @@ internal fun WindowMenu(
     shape: androidx.compose.ui.graphics.Shape = MaterialTheme.shapes.medium,
     containerColor: Color,
     border: BorderStroke? = null,
+    /** How far the menu stands off what is under it. */
+    shadow: androidx.compose.ui.unit.Dp = 3.dp,
     content: @Composable () -> Unit
 ) {
     if (!expanded) return
@@ -93,7 +95,7 @@ internal fun WindowMenu(
             shape = shape,
             color = containerColor,
             border = border,
-            shadowElevation = 3.dp,
+            shadowElevation = shadow,
             tonalElevation = 0.dp
         ) {
             Column(
