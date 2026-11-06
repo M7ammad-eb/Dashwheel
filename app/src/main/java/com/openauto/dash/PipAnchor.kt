@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -104,6 +106,13 @@ object PipAnchor {
 
     /** Packages currently docked as freeform windows (drives the status-bar inset). */
     val dockedPackages = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Screen areas of the windows docked on their tiles right now, for what the dashboard draws that they would cover. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val dockedAreas: kotlinx.coroutines.flow.Flow<List<ScreenRect>> = dockedPackages.flatMapLatest { pkgs ->
+        if (pkgs.isEmpty()) flowOf(emptyList())
+        else combine(pkgs.map { statusFlow(it) }) { all -> all.mapNotNull { s -> s.windowBounds?.takeIf { s.docked } } }
+    }
 
     private val freeformNow = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
