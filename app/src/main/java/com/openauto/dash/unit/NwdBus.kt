@@ -46,7 +46,7 @@ internal object NwdBus : VehicleBusSource {
         if (out != null) return
         out = publisher
         val app = context.applicationContext
-        ContextCompat.registerReceiver(app, receiver, IntentFilter(NwdProtocol.ACTION_VOLTAGE), ContextCompat.RECEIVER_EXPORTED)
+        ContextCompat.registerReceiver(app, receiver, IntentFilter(NwdProtocol.ACTION_VOLTAGE).apply { addAction(NwdProtocol.ACTION_STATUSBAR_STRING) }, ContextCompat.RECEIVER_EXPORTED)
         _listening.value = true
         job = scope.launch {
             var seenLights = false
@@ -91,6 +91,14 @@ internal object NwdBus : VehicleBusSource {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val o = out ?: return
+            if (intent.action == NwdProtocol.ACTION_STATUSBAR_STRING) {
+                // Sent on change only ("7℃"), confirmed on a unit's recording 2026-11-06; the Settings key was absent there.
+                val c = UnitSignals.parseOutsideTemp(intent.getStringExtra("extra_string")) ?: return
+                UnitPlatform.markUsed(Cap.VEHICLE_BUS)
+                UnitPlatform.markUsed(Cap.OUTSIDE_TEMP)
+                o.put(K.OUTSIDE_TEMP, c)
+                return
+            }
             if (intent.action != NwdProtocol.ACTION_VOLTAGE || !intent.hasExtra(NwdProtocol.EXTRA_VOLTAGE)) return
             val volts = NwdProtocol.volts(intent.getIntExtra(NwdProtocol.EXTRA_VOLTAGE, 0)) ?: return
             UnitPlatform.markUsed(Cap.VEHICLE_BUS)
