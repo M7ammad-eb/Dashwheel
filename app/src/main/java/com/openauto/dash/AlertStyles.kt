@@ -449,14 +449,15 @@ internal class AlertWindow(
         val v = ComposeView(hostContext)
         v.setViewTreeLifecycleOwner(o)
         v.setViewTreeSavedStateRegistryOwner(o)
-        // The full screen runs from the very top of the screen. Its content sits under the
-        // status bar while one shows and flush with the top while the bar is hidden: the
+        // The full screen and the side panel run from the very top of the screen. Their content
+        // sits under the status bar while one shows and flush with the top while the bar is
+        // hidden (the dashboard hides it): the
         // window's visible frame starts under the bar only then (an overlay window gets no
         // content inset for it, and no insets callback when the bar comes or goes, but a layout
-        // pass). Black behind, for a firmware that hides the bar by its own means and still
-        // reports it: never the app below.
+        // pass). The full screen has black behind, for a firmware that hides the bar by its own
+        // means and still reports it: never the app below.
         val barTop = mutableIntStateOf(0)
-        if (style == AlertStyle.FULL) {
+        if (style == AlertStyle.FULL || style == AlertStyle.PANEL) {
             v.viewTreeObserver.addOnGlobalLayoutListener {
                 barTop.intValue = android.graphics.Rect().also(v::getWindowVisibleDisplayFrame).top.coerceAtLeast(0)
             }
@@ -465,9 +466,12 @@ internal class AlertWindow(
             OpenAutoDashTheme {
                 // Asked back while it animated out: it stays.
                 AlertMotion(style, state, onGone = { v.post { if (view === v && visible?.targetState == false) removeNow() } }) {
-                    if (style == AlertStyle.FULL) {
-                        Box(Modifier.fillMaxSize().background(Color.Black).padding(top = with(LocalDensity.current) { barTop.intValue.toDp() })) { content() }
-                    } else content()
+                    val underBar = with(LocalDensity.current) { barTop.intValue.toDp() }
+                    when (style) {
+                        AlertStyle.FULL -> Box(Modifier.fillMaxSize().background(Color.Black).padding(top = underBar)) { content() }
+                        AlertStyle.PANEL -> Box(Modifier.fillMaxSize().padding(top = underBar)) { content() }
+                        else -> content()
+                    }
                 }
             }
         }
@@ -545,15 +549,15 @@ internal class AlertWindow(
         val panel = (panelWidthDp((dm.widthPixels / dm.density).toInt()).value * dm.density).toInt()
         // The bar's height, its glass margin under it included (TopBar).
         val aboveBar = dm.heightPixels - ((DashSize.Bar.value + 10f) * dm.density).toInt()
-        // The side panel starts under the status bar: laid out in screen, its title sat on the
-        // bar's icons. The full screen follows the bar itself instead (show).
+        // The pill goes under the status bar: laid out in screen, it sat on the bar's icons. The
+        // side panel and the full screen follow the bar itself instead (show): placed under its
+        // height, the panel left a gap at the top while the dashboard hid the bar.
         val underStatus = statusBarHeight()
         val whole = if (clearOfBar) aboveBar else dm.heightPixels
-        val tall = whole - underStatus
         val (w, h) = when (style) {
             AlertStyle.PILL, AlertStyle.CARD, AlertStyle.BUBBLE, AlertStyle.ICON -> wrap to wrap
             AlertStyle.BANNER -> match to wrap
-            AlertStyle.PANEL -> panel to tall
+            AlertStyle.PANEL -> panel to whole
             AlertStyle.FULL -> match to whole
         }
         return WindowManager.LayoutParams(
@@ -580,7 +584,6 @@ internal class AlertWindow(
                     }
                 }
                 AlertStyle.PILL -> y = maxOf(margin / 2, underStatus)
-                AlertStyle.PANEL -> y = underStatus
                 else -> Unit
             }
             title = "Dashwheel $name"
