@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -86,6 +87,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -2475,7 +2477,32 @@ private fun FadingPageIndicator(shown: Boolean, page: Int, cross: ShownCross, wa
         label = "pageIndicator"
     )
     if (fade > 0f) {
-        PageIndicator(page, cross, modifier = modifier.graphicsLayer { alpha = fade }, wayHome = wayHome)
+        // A docked app window is drawn above the dashboard: the indicator moves aside
+        // into the stretch the windows leave clear rather than show under one.
+        val view = LocalView.current
+        val windows by PipAnchor.dockedAreas.collectAsState(emptyList())
+        var at by remember { mutableStateOf<ScreenRect?>(null) }
+        val dx = at?.let { r ->
+            val origin = IntArray(2).also { view.getLocationOnScreen(it) }
+            val area = ScreenRect(origin[0], origin[1], origin[0] + view.width, origin[1] + view.height)
+            WindowListing.clearCentreX(r, area, windows)?.minus((r.left + r.right) / 2)
+        } ?: 0
+        PageIndicator(
+            page, cross,
+            modifier = modifier
+                .onGloballyPositioned { coords ->
+                    val b = coords.boundsInRoot()
+                    val origin = IntArray(2).also { view.getLocationOnScreen(it) }
+                    val r = ScreenRect(
+                        (b.left + origin[0]).roundToInt(), (b.top + origin[1]).roundToInt(),
+                        (b.right + origin[0]).roundToInt(), (b.bottom + origin[1]).roundToInt()
+                    )
+                    if (r != at) at = r
+                }
+                .offset { IntOffset(dx, 0) }
+                .graphicsLayer { alpha = fade },
+            wayHome = wayHome
+        )
     }
 }
 

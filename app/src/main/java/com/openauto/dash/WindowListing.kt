@@ -44,6 +44,25 @@ object WindowListing {
         limit == null || (b.top >= limit.top - slack && b.bottom <= limit.bottom + slack &&
             b.left >= limit.left - slack && b.right <= limit.right + slack)
 
+    /**
+     * Where to centre a passing label that sits at [at] so no window of [windows]
+     * covers it (they are drawn above the dashboard): its own centre when none
+     * does, else the centre of the widest stretch of [area] those windows leave
+     * clear at its height. Null when no stretch is wide enough for it.
+     */
+    internal fun clearCentreX(at: ScreenRect, area: ScreenRect, windows: Collection<ScreenRect>): Int? {
+        if (windows.none { overlaps(it, at) }) return (at.left + at.right) / 2
+        val blocking = windows.filter { it.top < at.bottom && at.top < it.bottom }.sortedBy { it.left }
+        var best: IntRange? = null
+        var from = area.left
+        for (w in blocking + ScreenRect(area.right, 0, area.right, 0)) {
+            if (w.left - from > (best?.let { it.last - it.first } ?: -1)) best = from..w.left
+            from = maxOf(from, w.right)
+        }
+        val gap = best ?: return null
+        return if (gap.last - gap.first >= at.right - at.left) (gap.first + gap.last) / 2 else null
+    }
+
     /** True when [a] and [b] overlap; within [margin] px of each other counts too (a pop-up's shadow). */
     internal fun overlaps(a: ScreenRect, b: ScreenRect, margin: Int = 0): Boolean =
         a.left - margin < b.right && b.left - margin < a.right &&
