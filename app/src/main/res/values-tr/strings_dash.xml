@@ -267,6 +267,8 @@
     <string name="dash_theme_spatial_desc">Gece 3B bir şehrin üstünde farklı derinliklerde süzülen cam pencereler.</string>
     <string name="dash_theme_paper">Paper</string>
     <string name="dash_theme_paper_desc">E-kağıt gibi gri üstüne mürekkep: noktalı bir harita, düz bilgiler ve hareket eden hiçbir şey.</string>
+    <string name="dash_theme_open">Açık</string>
+    <string name="dash_theme_open_desc">Her widget arka planı ve çerçevesi olmadan, doğrudan zeminin üzerinde çizilir</string>
     <string name="look_layout_applied">Ana ekran %1$s gibi düzenlendi</string>
     <string name="dash_bar_size">Çubuk boyutu</string>
     <string name="dash_bar_size_normal">Normal</string>
