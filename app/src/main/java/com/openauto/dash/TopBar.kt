@@ -941,38 +941,40 @@ internal fun MorePicker(m: TopBarModel, geminiInBar: Boolean = false, anchor: @C
             )
             UpdateDotHint()
         }
-        DashMenu(open, onDismiss = { open = false }) {
+        DashMenu(open, onDismiss = { open = false }, prominent = true) {
             if (m.moving) DriveLockRow()
             val parked = !m.moving
             UpdateMenuRow(m.update, parked, onUpdate = pick(m.onUpdate))
             DashMenuItem(
                 text = stringResource(if (m.editing) R.string.dash_menu_done_editing else R.string.dash_menu_edit_dashboards),
-                leading = { MenuIcon(if (m.editing) Icons.Filled.Done else Icons.Filled.Edit, parked) },
+                leading = { MenuChip(if (m.editing) Icons.Filled.Done else Icons.Filled.Edit, DashColors.Accent, parked) },
                 enabled = parked || m.editing,
                 onClick = pick(m.onToggleEdit)
             )
-            DashMenuItem(stringResource(R.string.templates_button), leading = { MenuIcon(Icons.Filled.Dashboard, parked) }, enabled = parked, onClick = pick(m.onTemplates))
+            DashMenuItem(stringResource(R.string.templates_button), leading = { MenuChip(Icons.Filled.Dashboard, DashColors.Accent, parked) }, enabled = parked, onClick = pick(m.onTemplates))
             // Splitting the screen with an app is in the bar's Layout menu, with Google Maps' dock.
             // Spoken, so offered while driving too; here only when the look's bar has no button for it.
             if (!geminiInBar && GeminiLive.available(context)) {
-                DashMenuItem(stringResource(R.string.ai_gemini_live), leading = { MenuIcon(Icons.Filled.AutoAwesome) }, onClick = pick { GeminiLive.toggle(context) })
+                DashMenuItem(stringResource(R.string.ai_gemini_live), leading = { MenuChip(Icons.Filled.AutoAwesome, DashColors.Accent2) }, onClick = pick { GeminiLive.toggle(context) })
             }
             // What the car says by itself, off for this drive and back: the same switch as the wheel's Quiet.
             val quiet by CarVoice.quietState.collectAsState()
             DashMenuItem(
                 text = stringResource(if (quiet) R.string.voice_menu_back else R.string.voice_menu_quiet),
-                leading = { MenuIcon(if (quiet) Icons.Filled.VolumeUp else Icons.Filled.VolumeOff) },
+                leading = { MenuChip(if (quiet) Icons.Filled.VolumeUp else Icons.Filled.VolumeOff, DashColors.Secondary) },
                 onClick = pick {
                     CarVoice.quiet = !quiet
                     if (quiet) HandsFree.say(context, R.string.voice_quiet_off)
                 }
             )
-            DashMenuItem(stringResource(R.string.settings_menu), leading = { MenuIcon(Icons.Filled.Settings, parked) }, enabled = parked, onClick = pick(m.onSettings))
+            // Settings, set once, stands apart from the things done often.
+            HorizontalDivider(color = DashColors.Line, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+            DashMenuItem(stringResource(R.string.settings_menu), leading = { MenuChip(Icons.Filled.Settings, DashColors.TextPrimary, parked) }, enabled = parked, onClick = pick(m.onSettings))
             if (m.demo) {
                 HorizontalDivider(color = DashColors.Line, modifier = Modifier.padding(vertical = 4.dp))
                 DashMenuItem(
                     text = stringResource(R.string.demo_menu_stop),
-                    leading = { MenuIcon(Icons.Filled.Stop) },
+                    leading = { MenuChip(Icons.Filled.Stop, DashColors.Critical) },
                     onClick = pick(m.onDemo)
                 )
             }
@@ -1098,8 +1100,17 @@ internal fun DriveLockChip(modifier: Modifier = Modifier) {
 /** How long [DriveLockChip] stays up. */
 internal const val LOCK_NOTICE_MS = 2_500L
 
+/** Whether the [DashMenu] around a row is the bar's More menu, drawn to stand out ([MorePicker]). */
+private val LocalProminentMenu = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+/**
+ * A menu of the bar. [prominent] (the More menu) lifts it off the dashboard
+ * it opens over: a lighter panel between [DashColors.Card] and
+ * [DashColors.CardHi], an accent edge, a deeper shadow and its labels a step
+ * bolder, so it no longer melts into dark tiles.
+ */
 @Composable
-private fun DashMenu(open: Boolean, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+private fun DashMenu(open: Boolean, onDismiss: () -> Unit, prominent: Boolean = false, content: @Composable () -> Unit) {
     // An auto-hiding bar stays up while its menu is open (BarAutoHide.kt).
     if (open) {
         DisposableEffect(Unit) {
@@ -1113,11 +1124,16 @@ private fun DashMenu(open: Boolean, onDismiss: () -> Unit, content: @Composable 
         expanded = open,
         onDismissRequest = onDismiss,
         modifier = Modifier.keepClearOfWindows(),
-        shape = MaterialTheme.shapes.medium,
-        containerColor = DashColors.Card.copy(alpha = 1f),
-        border = BorderStroke(1.dp, DashColors.Line)
+        shape = if (prominent) DashShape.Large else MaterialTheme.shapes.medium,
+        containerColor = if (prominent) {
+            androidx.compose.ui.graphics.lerp(DashColors.Card.copy(alpha = 1f), DashColors.CardHi.copy(alpha = 1f), 0.5f)
+        } else DashColors.Card.copy(alpha = 1f),
+        border = if (prominent) BorderStroke(1.5.dp, DashColors.Accent.copy(alpha = 0.55f)) else BorderStroke(1.dp, DashColors.Line),
+        shadow = if (prominent) 16.dp else 3.dp
     ) {
-        content()
+        androidx.compose.runtime.CompositionLocalProvider(LocalProminentMenu provides prominent) {
+            content()
+        }
     }
 }
 
@@ -1145,7 +1161,11 @@ private fun DashMenuItem(
                         selected || highlighted -> DashColors.Accent
                         else -> DashColors.TextPrimary
                     },
-                    fontWeight = if (selected || highlighted) FontWeight.SemiBold else FontWeight.Normal,
+                    fontWeight = when {
+                        selected || highlighted -> FontWeight.SemiBold
+                        LocalProminentMenu.current -> FontWeight.Medium
+                        else -> FontWeight.Normal
+                    },
                     style = MaterialTheme.typography.bodyLarge
                 )
                 if (detail != null) {
@@ -1165,6 +1185,21 @@ private fun DashMenuItem(
 @Composable
 private fun MenuIcon(icon: ImageVector, enabled: Boolean = true) {
     Icon(icon, contentDescription = null, tint = if (enabled) DashColors.TextSecondary else DashColors.Muted)
+}
+
+/**
+ * The More menu's icon: [icon] in [hue] on a round chip of the same hue, so
+ * each entry is told apart at a glance. Greyed like the row when it is off.
+ */
+@Composable
+private fun MenuChip(icon: ImageVector, hue: Color, enabled: Boolean = true) {
+    val ink = if (enabled) hue else DashColors.Muted
+    Box(
+        modifier = Modifier.size(40.dp).clip(CircleShape).background(ink.copy(alpha = if (enabled) 0.2f else 0.12f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(22.dp))
+    }
 }
 
 /**
@@ -1518,7 +1553,7 @@ private fun UpdateMenuRow(status: UpdateStatus, parked: Boolean, onUpdate: () ->
     val enabled = parked && status !is UpdateStatus.Downloading
     DashMenuItem(
         text = text,
-        leading = { MenuIcon(Icons.Filled.SystemUpdate, enabled) },
+        leading = { MenuChip(Icons.Filled.SystemUpdate, DashColors.Accent, enabled) },
         highlighted = status !is UpdateStatus.Downloading,
         enabled = enabled,
         // The same line as the hint over ⋮: the dot on the button is this row.
