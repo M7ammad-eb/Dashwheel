@@ -391,4 +391,5 @@
     <string name="alerts_group_car">Del coche</string>
     <string name="alerts_group_road">En la carretera</string>
     <string name="alerts_group_start">Al arrancar</string>
+    <string name="settings_system_app_on">Instalada. Los widgets de Android se añaden sin preguntar.</string>
 </resources>

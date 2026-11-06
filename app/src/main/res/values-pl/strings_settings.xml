@@ -395,4 +395,5 @@
     <string name="alerts_group_car">Z samochodu</string>
     <string name="alerts_group_road">Na drodze</string>
     <string name="alerts_group_start">Na starcie</string>
+    <string name="settings_system_app_on">Zainstalowano. Widżety Androida dodają się bez pytania.</string>
 </resources>

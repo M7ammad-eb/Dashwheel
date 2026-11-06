@@ -397,4 +397,5 @@
     <string name="alerts_group_car">Iš automobilio</string>
     <string name="alerts_group_road">Kelyje</string>
     <string name="alerts_group_start">Pradedant kelionę</string>
+    <string name="settings_system_app_on">Įdiegta. Android valdikliai pridedami be klausimo.</string>
 </resources>

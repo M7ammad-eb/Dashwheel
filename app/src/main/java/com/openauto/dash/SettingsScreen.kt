@@ -1357,7 +1357,8 @@ private fun UnitToolsSheet(m: TopBarModel, onBootLogo: () -> Unit, onDismiss: ()
             // need Dashwheel installed as a system app.
             SettingsSection(stringResource(R.string.settings_section_apps_in_tiles))
             SystemPermissionsRow(remember { EmbeddedApp.allowed(context) })
-            if (shell) SettingsRow(Icons.Filled.Build, stringResource(R.string.dash_system_app_title), stringResource(R.string.settings_system_detail), m.onSystem)
+            if (remember { SystemInstaller.isSystemApp(context) }) GatedRow(Icons.Filled.Build, stringResource(R.string.dash_system_app_title), stringResource(R.string.settings_system_app_on))
+            else if (shell) SettingsRow(Icons.Filled.Build, stringResource(R.string.dash_system_app_title), stringResource(R.string.settings_system_detail), m.onSystem)
             else GatedRow(Icons.Filled.Build, stringResource(R.string.dash_system_app_title), needsRoot)
         }
     }

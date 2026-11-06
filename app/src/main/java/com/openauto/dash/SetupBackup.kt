@@ -27,7 +27,7 @@ internal object SetupBackup {
      */
     private val SKIP_FILES = setOf(
         "phone_link", "car_power", "startup_briefing", "updates", "head_unit_phone",
-        "compile_after_update", "pmpatch", "ai_diagnoses",
+        "compile_after_update", "pmpatch", "pmpatch_steps", "ai_diagnoses",
         // The second screen's pairing secret, like the phone's; and this unit's own
         // system state: the navigation bar policy it found, the widget ids it let go of.
         "display_link", "docked_nav_bar", "widget_host",

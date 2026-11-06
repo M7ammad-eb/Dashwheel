@@ -388,4 +388,5 @@
     <string name="alerts_group_car">Az autóból</string>
     <string name="alerts_group_road">Útközben</string>
     <string name="alerts_group_start">Induláskor</string>
+    <string name="settings_system_app_on">Telepítve. Az Android-widgetek kérdés nélkül hozzáadhatók.</string>
 </resources>

@@ -387,4 +387,5 @@
     <string name="alerts_group_car">Vom Auto</string>
     <string name="alerts_group_road">Unterwegs</string>
     <string name="alerts_group_start">Beim Losfahren</string>
+    <string name="settings_system_app_on">Installiert. Android-Widgets lassen sich ohne Nachfrage hinzufügen.</string>
 </resources>

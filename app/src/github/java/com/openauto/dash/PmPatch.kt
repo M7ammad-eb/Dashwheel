@@ -155,6 +155,7 @@ internal object PmPatch {
         if (!prefs(app).getBoolean(KEY_PENDING, false)) return
         if (EmbeddedApp.allowed(app)) {
             prefs(app).edit().putBoolean(KEY_PENDING, false).apply()
+            PmPatchSteps.reached(app, PmPatchSteps.COUNT)
             return
         }
         thread(isDaemon = true, name = "pmpatch") {
