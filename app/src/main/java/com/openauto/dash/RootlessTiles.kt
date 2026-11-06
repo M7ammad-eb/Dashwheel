@@ -1,6 +1,7 @@
 package com.openauto.dash
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -15,8 +16,8 @@ import androidx.compose.ui.res.stringResource
  * and an app in a window of its own or inside its tile is placed through
  * the shell too. Every other tile works anywhere.
  */
-internal fun PrivilegedShell.Access.allows(item: DashboardItem): Boolean = when (item) {
-    is DashboardItem.BuiltinWidget -> allows(item.kind)
+internal fun PrivilegedShell.Access.allows(item: DashboardItem, learnedDoors: Boolean = false): Boolean = when (item) {
+    is DashboardItem.BuiltinWidget -> allows(item.kind, learnedDoors)
     is DashboardItem.AppWindow -> shell
     else -> true
 }
@@ -38,7 +39,8 @@ internal fun RootlessTiles(
 ) {
     var kept by rememberSaveable { mutableStateOf(false) }
     if (kept || access == PrivilegedShell.Access.UNKNOWN || LocalDriveLock.current.moving) return
-    val stranded = pages.flatten().filterNot { access.allows(it) }
+    val learnedDoors = LearnedSignals.mapped.collectAsState().value.keys.any { it.isDoor }
+    val stranded = pages.flatten().filterNot { access.allows(it, learnedDoors) }
     if (stranded.isEmpty()) return
     val context = LocalContext.current
     val names = stranded.map { tile ->
@@ -56,7 +58,7 @@ internal fun RootlessTiles(
         // Two Doors tiles read as one name, so the sentence counts names, not tiles.
         body = pluralStringResource(R.plurals.dash_rootless_body, names.size, names.joinToString(", ")),
         action = stringResource(R.string.dash_tile_remove),
-        onConfirm = { onRemove(pages.map { page -> page.filter { access.allows(it) } }) },
+        onConfirm = { onRemove(pages.map { page -> page.filter { access.allows(it, learnedDoors) } }) },
         onDismiss = { kept = true }
     )
 }

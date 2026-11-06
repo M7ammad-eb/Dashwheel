@@ -70,11 +70,15 @@ object PrivilegedShell {
          */
         val carSettings: Boolean get() = shell || settingsGranted
 
-        /** Whether [kind] can show anything here: the CANbox monitor needs root, the Maps window a shell. */
-        fun allows(kind: BuiltinKind): Boolean = when (kind) {
+        /**
+         * Whether [kind] can show anything here: the CANbox monitor needs root, the Maps window a shell.
+         * [learnedDoors]: the driver taught a door in Car signals, which needs neither.
+         */
+        fun allows(kind: BuiltinKind, learnedDoors: Boolean = false): Boolean = when (kind) {
             BuiltinKind.CAN_MON -> root
-            // The car box's data (doors included) is shared once Dashwheel is registered with the car app (CarBox).
-            BuiltinKind.DOORS, BuiltinKind.CAR_STATUS -> carSettings
+            BuiltinKind.DOORS -> carSettings || learnedDoors
+            // The car box's data is shared once Dashwheel is registered with the car app (CarBox).
+            BuiltinKind.CAR_STATUS -> carSettings
             BuiltinKind.PIP_ANCHOR -> shell
             else -> true
         }

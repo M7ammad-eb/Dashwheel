@@ -225,12 +225,13 @@ private fun WidgetsTab(
     // The tiles that live on the privileged shell (the Maps window, the CANbox
     // ones) are left out where there is none: they could only sit waiting.
     val access = shellAccess()
+    val learnedDoors = LearnedSignals.mapped.collectAsState().value.keys.any { it.isDoor }
     val unsorted = BuiltinKind.entries.filter { kind ->
-        kind.offered && access.allows(kind) &&
+        kind.offered && access.allows(kind, learnedDoors) &&
             // Only the QF firmware's car app shares the car's data.
             (kind != BuiltinKind.CAR_STATUS || UnitPlatform.delivers(Cap.BODY_TRIP)) &&
-            // The doors: from the CAN box stream with root, else from the car app's data.
-            (kind != BuiltinKind.DOORS || access.root || UnitPlatform.delivers(Cap.DOORS)) &&
+            // The doors: from the CAN box stream with root, Car signals, else from the car app's data.
+            (kind != BuiltinKind.DOORS || access.root || learnedDoors || UnitPlatform.delivers(Cap.DOORS)) &&
             // Only with the head unit's TPMS app, or a USB tyre receiver chosen in Settings.
             (kind != BuiltinKind.TYRES || UnitPlatform.delivers(Cap.TYRES) || UsbTpms.on) &&
             // Only where Android lets Dashwheel open another app on its own display (PMPatch in Magisk).

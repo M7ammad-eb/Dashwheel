@@ -54,6 +54,31 @@ internal fun mergeDoors(builtIn: McuReader.DoorState?, learned: Map<CarSignal, B
     )
 }
 
+/**
+ * The learned doors held steady: a door's new reading counts once it has lasted [reads] reads in a row, so a
+ * piece that also flickers with the engine or the speed for a moment does not open the door on screen. The
+ * first reading, and every other signal, passes at once.
+ */
+internal class DoorSettle(private val reads: Int) {
+    private var held: Map<CarSignal, Boolean> = emptyMap()
+    private val streak = HashMap<CarSignal, Int>()
+
+    fun settle(raw: Map<CarSignal, Boolean>): Map<CarSignal, Boolean> {
+        val out = HashMap<CarSignal, Boolean>(raw.size)
+        for ((signal, on) in raw) {
+            val was = held[signal]
+            out[signal] = when {
+                !signal.isDoor || was == null || was == on -> { streak.remove(signal); on }
+                (streak[signal] ?: 0) + 1 >= reads -> { streak.remove(signal); on }
+                else -> { streak[signal] = (streak[signal] ?: 0) + 1; was }
+            }
+        }
+        streak.keys.retainAll(raw.keys)
+        held = out
+        return out
+    }
+}
+
 /** The car's own doors among the bus's candidates: the best of the built-in sources, never a learned or demo one. */
 internal fun builtInDoors(candidates: List<Sample<McuReader.DoorState>>): McuReader.DoorState? =
     candidates.firstOrNull { it.source.kind.rank >= 0 }?.value
@@ -106,6 +131,8 @@ object LearnedSignals {
     private const val PREFS = "car_signals"
     private const val KEY_CAMERA = "camera_id"
     private const val READ_MS = 300L
+    /** About a second: a door that really opens shows a moment later, a flicker never. */
+    private const val DOOR_READS = 4
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var appContext: Context? = null
@@ -182,11 +209,13 @@ object LearnedSignals {
         busPublisher.up(true)
         if (job?.isActive == true) return
         job = scope.launch {
+            val settle = DoorSettle(DOOR_READS)
             while (isActive) {
-                val now = HashMap<CarSignal, Boolean>()
+                val raw = HashMap<CarSignal, Boolean>()
                 for ((signal, probe) in _mapped.value) {
-                    probe.isOn(SignalSources.current(app, probe.key))?.let { now[signal] = it }
+                    probe.isOn(SignalSources.current(app, probe.key))?.let { raw[signal] = it }
                 }
+                val now = settle.settle(raw)
                 val before = _state.value
                 if (now != before) {
                     _state.value = now

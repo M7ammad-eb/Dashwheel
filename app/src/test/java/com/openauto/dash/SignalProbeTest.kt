@@ -94,4 +94,20 @@ class SignalProbeTest {
         val rest = mapOf("a" to "0", "b" to "0", "c" to "0")
         assertEquals(setOf("b"), SignalMatch.flipped(rest, mapOf("a" to "0", "b" to "1", "c" to "1"), listOf("a", "b")))
     }
+
+    @Test
+    fun aLearnedDoorChangesOnlyOnceItHolds_otherSignalsAtOnce() {
+        val fl = CarSignal.FRONT_LEFT
+        val lights = CarSignal.HEADLIGHTS
+        val settle = DoorSettle(3)
+        assertEquals(mapOf(fl to false), settle.settle(mapOf(fl to false)))
+        // A two-read flicker never shows.
+        assertEquals(false, settle.settle(mapOf(fl to true))[fl])
+        assertEquals(false, settle.settle(mapOf(fl to true))[fl])
+        assertEquals(false, settle.settle(mapOf(fl to false))[fl])
+        // Three reads in a row do; the lights follow at once.
+        assertEquals(false, settle.settle(mapOf(fl to true, lights to true))[fl])
+        assertEquals(false, settle.settle(mapOf(fl to true, lights to false))[fl])
+        assertEquals(mapOf(fl to true, lights to true), settle.settle(mapOf(fl to true, lights to true)))
+    }
 }

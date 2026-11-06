@@ -31,6 +31,8 @@ class PrivilegedShellTest {
         for (kind in listOf(BuiltinKind.PIP_ANCHOR, BuiltinKind.DOORS, BuiltinKind.CAR_STATUS)) {
             assertEquals(kind.name, setOf(Access.ROOT, Access.SHIZUKU, Access.ADB), Access.entries.filter { it.allows(kind) }.toSet())
         }
+        // Doors taught in Car signals need no shell.
+        assertTrue(Access.entries.all { it.allows(BuiltinKind.DOORS, learnedDoors = true) })
         val plain = BuiltinKind.entries - setOf(BuiltinKind.DOORS, BuiltinKind.CAN_MON, BuiltinKind.PIP_ANCHOR, BuiltinKind.CAR_STATUS)
         for (kind in plain) for (access in Access.entries) assertTrue("$kind under $access", access.allows(kind))
     }

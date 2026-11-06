@@ -5,6 +5,7 @@ import com.openauto.dash.vehicle.rememberGaugeInt
 import com.openauto.dash.vehicle.rememberReadings
 import com.openauto.dash.vehicle.K
 import com.openauto.dash.vehicle.rememberTyres
+import com.openauto.dash.vehicle.rememberVehicle
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -321,7 +322,8 @@ internal fun FutHologram(env: SkinTileEnv, callouts: Boolean, modifier: Modifier
 /**
  * What the hologram points out: the coolant on the engine; the tyres on the
  * front wheel (the one in trouble, else the lowest), or the battery, or the
- * revs when the unit has no tyre sensors; fuel and range at the filler; the
+ * revs when the unit has no tyre sensors; fuel and range at the filler (the
+ * lights there when the car gives no fuel level); the
  * doors on the roof. A reading not known yet is left out, except the engine,
  * which shows "--" until OBD answers.
  */
@@ -333,6 +335,7 @@ private fun rememberHoloCallouts(): List<FutHoloCallout> {
     val revs = rememberGaugeInt(K.RPM)
     val fuel = rememberFuel()
     val doors = rememberDoors()
+    val lights = rememberVehicle(K.HEADLIGHTS)
     val tyres = rememberTyres()
     val problems by Tyres.problems.collectAsState()
     val pressureUnit by Tyres.unit.collectAsState()
@@ -344,6 +347,9 @@ private fun rememberHoloCallouts(): List<FutHoloCallout> {
     val doorsLabel = stringResource(R.string.skin_futuristic_doors)
     val closed = stringResource(R.string.skin_futuristic_doors_closed)
     val open = stringResource(R.string.skin_futuristic_door_open)
+    val lightsLabel = stringResource(R.string.car_status_lights)
+    val lightsOn = stringResource(R.string.car_status_on)
+    val lightsOff = stringResource(R.string.car_status_off)
     val list = ArrayList<FutHoloCallout>(4)
     list += FutHoloCallout(
         FutHoloSlot.FRONT, engine,
@@ -364,6 +370,9 @@ private fun rememberHoloCallouts(): List<FutHoloCallout> {
         list += FutHoloCallout(
             FutHoloSlot.REAR, fuelLabel, listOf("${fuel.percent}% · $range", "${fuel.percent}%"), fuel.percent <= SKIN_LOW_FUEL_PCT
         )
+    } else if (lights != null) {
+        // shortcut: the lights only get the rear slot a car without a fuel level leaves free; a fifth slot needs a new layout.
+        list += FutHoloCallout(FutHoloSlot.REAR, lightsLabel, listOf(if (lights) lightsOn else lightsOff), false)
     }
     doors?.let { list += FutHoloCallout(FutHoloSlot.ROOF, doorsLabel, listOf(if (it.anyOpen) open else closed), it.anyOpen) }
     return list
