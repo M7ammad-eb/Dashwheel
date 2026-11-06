@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">São apagados do carro de vez. Uma oficina precisa deles para encontrar uma avaria.</string>
     <string name="vehicle_err_unit_bt_aa">O Android Auto sem fios de um telemóvel ocupa o Bluetooth do rádio e %1$s não consegue ligar-se: desligue o Android Auto sem fios no telemóvel</string>
     <string name="vehicle_err_unit_bt_restarted">O Bluetooth do rádio estava bloqueado e foi reiniciado: %1$s volta a ligar-se dentro de um minuto</string>
+    <string name="vehicle_fuel_no_obd_bus">O OBD deste carro não indica o combustível. É possível aprendê-lo a partir da caixa CAN.</string>
 </resources>

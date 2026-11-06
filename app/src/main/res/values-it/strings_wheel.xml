@@ -129,4 +129,6 @@
     <string name="wheel_monitor_no_root">Senza root qui compaiono solo i tasti Android e quelli dell\'autoradio. L\'input grezzo e il registro richiedono root.</string>
     <string name="wheel_log_match_label">La riga del registro contiene</string>
     <string name="wheel_log_hint">Agisce ogni volta che il registro dell\'autoradio mostra una riga con questo testo. Accorcialo alla parte che nomina il tasto.</string>
+    <string name="wheel_unit_muted">Muto attivo</string>
+    <string name="wheel_unit_unmuted">Muto disattivo</string>
 </resources>

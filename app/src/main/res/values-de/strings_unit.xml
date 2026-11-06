@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The head unit firmware family and what it lets Dashwheel do (UnitPlatform, Settings, System, Head unit). -->
 <resources>
-    <string name="unit_fyt_keys_note">Braucht eine Shell; die eigenen Apps des Radios verlieren derweil die Lenkradtasten</string>
+    <string name="unit_fyt_keys_note">Braucht eine Shell. Manche Radios behalten Lautstärke und Stummschaltung und geben nur die Sprachtaste ab</string>
     <string name="unit_mtc_whitelist_title">Dashwheel wach halten</string>
     <string name="unit_mtc_whitelist_detail">Nehmen Sie Dashwheel in die Schlaf-Whitelist des Radios auf (seine BootControl-App oder die Einstellungen der Mod-ROM). Sonst beendet die Firmware es beim Ausschalten der Zündung.</string>
     <string name="unit_reglink_duraspeed_title">DuraSpeed ausschalten</string>

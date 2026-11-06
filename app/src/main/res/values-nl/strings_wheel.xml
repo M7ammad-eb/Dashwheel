@@ -129,4 +129,6 @@
     <string name="wheel_monitor_no_root">Zonder root verschijnen hier alleen Android-toetsen en de eigen toetsen van de radio. Ruwe invoer en het logboek hebben root nodig.</string>
     <string name="wheel_log_match_label">Logboekregel bevat</string>
     <string name="wheel_log_hint">Werkt telkens als het logboek van de radio een regel met deze tekst toont. Kort hem in tot het deel dat de knop benoemt.</string>
+    <string name="wheel_unit_muted">Dempen aan</string>
+    <string name="wheel_unit_unmuted">Dempen uit</string>
 </resources>

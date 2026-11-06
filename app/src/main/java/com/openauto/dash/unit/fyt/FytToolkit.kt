@@ -60,12 +60,30 @@ internal class FytToolkit(context: Context) {
             runCatching { app.unbindService(connection) }
             Log.w(TAG, "the FYT toolkit service is not there; trying again in ${RETRY_MS / 1000} s")
             main.postDelayed({ connect() }, RETRY_MS)
+        } else {
+            main.postDelayed(watchdog, BIND_WAIT_MS)
         }
+    }
+
+    /**
+     * At boot the firmware's server comes up with Dashwheel, and a bind it
+     * accepted may never be answered: without an answer in [BIND_WAIT_MS] the
+     * bind is dropped and made again.
+     */
+    private val watchdog: Runnable = Runnable {
+        synchronized(this) {
+            if (toolkit != null || !binding) return@Runnable
+            Log.w(TAG, "the FYT toolkit didn't answer in ${BIND_WAIT_MS / 1000} s; binding again")
+            runCatching { app.unbindService(connection) }
+            binding = false
+        }
+        connect()
     }
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            if (service == null) return
+            if (service == null) { Log.w(TAG, "the FYT toolkit answered with no binder; the watchdog binds again"); return }
+            main.removeCallbacks(watchdog)
             toolkit = service
             runCatching { service.linkToDeath({ lost("died") }, 0) }
             _connected.value = true
@@ -74,6 +92,10 @@ internal class FytToolkit(context: Context) {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) = lost("disconnected")
+
+        override fun onNullBinding(name: ComponentName?) {
+            Log.w(TAG, "the FYT toolkit gave no binder; the watchdog binds again")
+        }
     }
 
     private fun lost(why: String) {
@@ -174,5 +196,6 @@ internal class FytToolkit(context: Context) {
     companion object {
         private const val TAG = "FytToolkit"
         private const val RETRY_MS = 2_000L
+        private const val BIND_WAIT_MS = 10_000L
     }
 }

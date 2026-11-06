@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">Végleg törlődnek az autóból. A szerviznek szüksége van rájuk a hiba megtalálásához.</string>
     <string name="vehicle_err_unit_bt_aa">Egy telefon vezeték nélküli Android Autója foglalja a fejegység Bluetooth-át, ezért %1$s nem tud csatlakozni: kapcsolja ki a vezeték nélküli Android Autót a telefonon</string>
     <string name="vehicle_err_unit_bt_restarted">A fejegység Bluetooth-a lefagyott, és újra lett indítva: %1$s egy percen belül újra csatlakozik</string>
+    <string name="vehicle_fuel_no_obd_bus">Ennek az autónak az OBD-je nem jelenti az üzemanyagszintet. Tanítsa be inkább a CAN-boxból.</string>
 </resources>

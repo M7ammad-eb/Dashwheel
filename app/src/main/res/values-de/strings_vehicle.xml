@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">Sie werden endgültig aus dem Auto gelöscht. Eine Werkstatt braucht sie, um einen Fehler zu finden.</string>
     <string name="vehicle_err_unit_bt_aa">Das kabellose Android Auto eines Handys hält das Bluetooth des Geräts besetzt, %1$s kann sich nicht verbinden: kabelloses Android Auto am Handy ausschalten</string>
     <string name="vehicle_err_unit_bt_restarted">Das Bluetooth des Geräts hing und wurde neu gestartet: %1$s verbindet sich in einer Minute wieder</string>
+    <string name="vehicle_fuel_no_obd_bus">Das OBD dieses Autos meldet keinen Kraftstoffstand. Stattdessen von der CAN-Box lernen.</string>
 </resources>

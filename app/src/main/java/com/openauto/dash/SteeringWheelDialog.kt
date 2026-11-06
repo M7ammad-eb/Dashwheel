@@ -667,7 +667,8 @@ private fun AccessibilityHint(text: String) {
  */
 @Composable
 private fun CanStatus() {
-    val entries by McuReader.entries.collectAsState()
+    // Another family's bus (FYT) counts: its values are read without the MCU log.
+    val entries by McuReader.monitorEntries.collectAsState()
     var waited by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(4_000)

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The head unit firmware family and what it lets Dashwheel do (UnitPlatform, Settings, System, Head unit). -->
 <resources>
-    <string name="unit_fyt_keys_note">Vereist een shell; de eigen apps van de radio verliezen ondertussen de stuurwieltoetsen</string>
+    <string name="unit_fyt_keys_note">Vereist een shell. Sommige radio\'s houden volume en dempen zelf en geven alleen de spraaktoets door</string>
     <string name="unit_mtc_whitelist_title">Dashwheel wakker houden</string>
     <string name="unit_mtc_whitelist_detail">Zet Dashwheel op de slaap-witte lijst van de radio (zijn BootControl-app, of de instellingen van de mod-ROM). Anders stopt de firmware het zodra het contact uitgaat.</string>
     <string name="unit_reglink_duraspeed_title">DuraSpeed uitzetten</string>

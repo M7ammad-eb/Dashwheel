@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">Ils sont effacés de la voiture pour de bon. Un garage en a besoin pour trouver une panne.</string>
     <string name="vehicle_err_unit_bt_aa">L\'Android Auto sans fil d\'un téléphone occupe le Bluetooth de l\'autoradio, %1$s ne peut pas se connecter : désactivez Android Auto sans fil sur le téléphone</string>
     <string name="vehicle_err_unit_bt_restarted">Le Bluetooth de l\'autoradio était bloqué et a été redémarré : %1$s se reconnecte dans une minute</string>
+    <string name="vehicle_fuel_no_obd_bus">L\'OBD de cette voiture n\'indique pas le carburant. Apprenez-le plutôt depuis le boîtier CAN.</string>
 </resources>

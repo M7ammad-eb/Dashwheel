@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">Araçtan kalıcı olarak silinirler. Bir servis arızayı bulmak için onlara ihtiyaç duyar.</string>
     <string name="vehicle_err_unit_bt_aa">Bir telefonun kablosuz Android Auto\'su ünitenin Bluetooth\'unu meşgul tutuyor, bu yüzden %1$s bağlanamıyor: telefonda kablosuz Android Auto\'yu kapatın</string>
     <string name="vehicle_err_unit_bt_restarted">Ünitenin Bluetooth\'u takılmıştı ve yeniden başlatıldı: %1$s bir dakika içinde yeniden bağlanır</string>
+    <string name="vehicle_fuel_no_obd_bus">Bu aracın OBD\'si yakıtı bildirmiyor. Bunun yerine araç kutusundan öğrenin.</string>
 </resources>

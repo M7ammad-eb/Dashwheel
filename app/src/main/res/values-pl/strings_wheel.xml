@@ -133,4 +133,6 @@
     <string name="wheel_monitor_no_root">Bez roota pojawiają się tu tylko klawisze Androida i własne przyciski radia. Surowe wejście i dziennik wymagają roota.</string>
     <string name="wheel_log_match_label">Wiersz dziennika zawiera</string>
     <string name="wheel_log_hint">Działa za każdym razem, gdy dziennik radia pokaże wiersz z tym tekstem. Skróć go do części, która nazywa przycisk.</string>
+    <string name="wheel_unit_muted">Wyciszenie wł.</string>
+    <string name="wheel_unit_unmuted">Wyciszenie wył.</string>
 </resources>

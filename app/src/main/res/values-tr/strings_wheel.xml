@@ -129,4 +129,6 @@
     <string name="wheel_monitor_no_root">Root olmadan burada yalnızca Android tuşları ve cihazın kendi tuşları görünür. Ham giriş ve günlük için root gerekir.</string>
     <string name="wheel_log_match_label">Günlük satırı şunu içeriyor</string>
     <string name="wheel_log_hint">Cihazın günlüğünde bu metni içeren bir satır göründüğünde çalışır. Düğmeyi adlandıran kısma kadar kısaltın.</string>
+    <string name="wheel_unit_muted">Sessiz açık</string>
+    <string name="wheel_unit_unmuted">Sessiz kapalı</string>
 </resources>

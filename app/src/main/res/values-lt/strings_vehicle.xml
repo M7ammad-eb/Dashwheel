@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">Jie bus ištrinti iš automobilio visam laikui. Servisui jų reikia gedimui rasti.</string>
     <string name="vehicle_err_unit_bt_aa">Telefono belaidis Android Auto užima magnetolos Bluetooth, todėl %1$s negali prisijungti: telefone išjunkite belaidį Android Auto</string>
     <string name="vehicle_err_unit_bt_restarted">Magnetolos Bluetooth buvo užstrigęs ir paleistas iš naujo: %1$s prisijungs po minutės</string>
+    <string name="vehicle_fuel_no_obd_bus">Šio automobilio OBD nerodo degalų. Išmokite juos iš CAN-box.</string>
 </resources>

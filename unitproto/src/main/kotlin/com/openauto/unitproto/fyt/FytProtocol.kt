@@ -97,9 +97,27 @@ object FytModules {
 
 /** Module MAIN's update codes. */
 object FytMain {
+    /**
+     * ints[0]: the illumination input, 1 with the car's lights on (the firmware dims the screen and goes to its
+     * night mode on it). Seen on a UIS8581A with a VW MQB decoder; side lights and dipped beam read the same.
+     */
+    const val U_ILL = 4
     /** A steering wheel or panel key: ints[0] is the key code (open-headunit); 576 is the voice key there. */
     const val U_KEY = 133
     const val KEY_VOICE = 576
+}
+
+/**
+ * Module SOUND's update codes. A UIS8581A firmware keeps the wheel's volume and mute keys to itself even with
+ * the keys taken: they only show here, as the volume and mute they set.
+ */
+object FytSound {
+    const val U_VOLUME = 2
+    /** ints[0]: 1 muted, 0 not. */
+    const val U_MUTE = 3
+    /** Made-up key codes (no firmware key has them) for mute going on and off, so the wheel map can bind them. */
+    const val KEY_MUTED = 100_401
+    const val KEY_UNMUTED = 100_400
 }
 
 /** Module BT's command and update codes (fyt-dialer, from the decompiled com.syu.bt). */
@@ -140,7 +158,7 @@ object FytCanbus {
     const val U_GPS_ANGLE = 1033
 
     /** The generic codes a Dashwheel subscribes to on every FYT unit. */
-    val GENERIC = intArrayOf(U_CANBUS_ID, U_EXIST_DOOR, U_CANBUS_VER, U_EXIST_AIR, U_EXIST_TEMP_OUT, U_CAMERA_MODE, U_CUR_SPEED, U_ENGINE_SPEED)
+    val GENERIC = intArrayOf(U_CANBUS_ID, U_EXIST_DOOR, U_CANBUS_VER, U_EXIST_AIR, U_EXIST_TEMP_OUT, U_CAMERA_MODE, U_CUR_SPEED, U_ENGINE_SPEED, FytFrames.U_FRAMES)
 
     /** The range the Signal Finder's sniffer subscribes to while it is open: every per-car code and the generic ones. */
     val SNIFF_RANGE = 0..1100
@@ -159,6 +177,47 @@ object FytCanbus {
 }
 
 /**
+ * Module CANBUS's code 1019: the decoder's own frames passed through as they
+ * come, several kinds under the one code. ints[0] is constant, ints[1] the
+ * frame's id, ints[2] its payload length, the payload from ints[3]. Read on a
+ * UIS8581A with an RZC VW MQB decoder (Skoda Fabia 3, issue #146).
+ */
+object FytFrames {
+    const val U_FRAMES = 1019
+    const val FRAME_REAR_RADAR = 0x22
+    const val FRAME_FRONT_RADAR = 0x23
+    const val FRAME_CLOCK = 0x26
+    /** A distance byte that sees nothing. */
+    private const val NOTHING = 255
+
+    fun frameId(ints: IntArray?): Int? = ints?.getOrNull(1)
+
+    fun isRadar(ints: IntArray?): Boolean = frameId(ints).let { it == FRAME_REAR_RADAR || it == FRAME_FRONT_RADAR }
+
+    /**
+     * A radar frame's four sensors, left to right, on Dashwheel's scale: null
+     * for a sensor the car doesn't have (level nibble 0), 0 for nothing seen,
+     * else 1 (closest) to 10 from the distance byte, taken for cm. Null when
+     * [ints] is no radar frame.
+     */
+    fun radarLevels(ints: IntArray?): List<Int?>? {
+        if (ints == null || !isRadar(ints) || ints.size < 9 || ints[2] < 6) return null
+        val nibbles = listOf((ints[7] shr 4) and 0xF, ints[7] and 0xF, (ints[8] shr 4) and 0xF, ints[8] and 0xF)
+        return (0 until 4).map { i ->
+            val cm = ints[3 + i]
+            when {
+                nibbles[i] == 0 -> null
+                cm == NOTHING || cm <= 0 -> 0
+                else -> levelOfCm(cm)
+            }
+        }
+    }
+
+    /** The inverse of the app's ObstacleMemory.metres: level 1 is about 30 cm, 10 about 1.5 m. */
+    fun levelOfCm(cm: Int): Int = (Math.round((cm / 100.0 - 0.3) / 0.13).toInt() + 1).coerceIn(1, 10)
+}
+
+/**
  * How an FYT update is keyed for the Signal Finder: "fyt:<module>:<code>#<i>"
  * for the i-th int, "#f<i>" for a float and "#s<i>" for a string. One piece
  * each (the finder slices no bytes out of them).
@@ -166,29 +225,42 @@ object FytCanbus {
 object FytKey {
     const val PREFIX = "fyt"
 
-    data class Parsed(val module: Int, val code: Int, val kind: Char, val index: Int)
+    /** [sub] is the sub-code of a code that carries several values in turn ([MUX]), null for a plain one. */
+    data class Parsed(val module: Int, val code: Int, val kind: Char, val index: Int, val sub: Int? = null)
+
+    /**
+     * CANBUS codes that carry several values in turn, with the index of the
+     * int telling which: 1019 by its frame id, 1049 (lights, doors...) by its
+     * first int. Their ints are keyed once more per sub-code,
+     * "fyt:7:1049[11]#1", so a taught signal reads only its own value.
+     */
+    private val MUX = mapOf(FytModules.CANBUS to mapOf(FytFrames.U_FRAMES to 1, 1049 to 0))
 
     fun int(module: Int, code: Int, index: Int) = "$PREFIX:$module:$code#$index"
+    fun subInt(module: Int, code: Int, sub: Int, index: Int) = "$PREFIX:$module:$code[$sub]#$index"
     fun float(module: Int, code: Int, index: Int) = "$PREFIX:$module:$code#f$index"
     fun string(module: Int, code: Int, index: Int) = "$PREFIX:$module:$code#s$index"
 
     /** The parts of an FYT key, or null when [key] isn't one. */
     fun parse(key: String): Parsed? {
         val m = KEY.matchEntire(key) ?: return null
-        val kind = m.groupValues[3].ifEmpty { "i" }[0]
-        return Parsed(m.groupValues[1].toInt(), m.groupValues[2].toInt(), kind, m.groupValues[4].toInt())
+        val kind = m.groupValues[4].ifEmpty { "i" }[0]
+        return Parsed(m.groupValues[1].toInt(), m.groupValues[2].toInt(), kind, m.groupValues[5].toInt(), m.groupValues[3].toIntOrNull())
     }
 
     /** Every finder key one update produces, with its value as text. */
     fun values(module: Int, code: Int, ints: IntArray?, flts: FloatArray?, strs: Array<String?>?): Map<String, String> {
         val out = LinkedHashMap<String, String>()
         ints?.forEachIndexed { i, v -> out[int(module, code, i)] = v.toString() }
+        val at = MUX[module]?.get(code)
+        val sub = if (at != null) ints?.getOrNull(at) else null
+        if (sub != null) ints?.forEachIndexed { i, v -> if (i != at) out[subInt(module, code, sub, i)] = v.toString() }
         flts?.forEachIndexed { i, v -> out[float(module, code, i)] = v.toString() }
         strs?.forEachIndexed { i, v -> if (v != null) out[string(module, code, i)] = v }
         return out
     }
 
-    private val KEY = Regex("^$PREFIX:(\\d+):(\\d+)#([fs]?)(\\d+)$")
+    private val KEY = Regex("^$PREFIX:(\\d+):(\\d+)(?:\\[(\\d+)])?#([fs]?)(\\d+)$")
 }
 
 /**

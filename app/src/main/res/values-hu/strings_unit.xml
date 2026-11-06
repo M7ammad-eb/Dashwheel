@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The head unit firmware family and what it lets Dashwheel do (UnitPlatform, Settings, System, Head unit). -->
 <resources>
-    <string name="unit_fyt_keys_note">Shell kell hozzá; a fejegység saját alkalmazásai addig elveszítik a kormánygombokat</string>
+    <string name="unit_fyt_keys_note">Shell kell hozzá. Egyes fejegységek megtartják a hangerőt és a némítást, és csak a hanggombot adják át</string>
     <string name="unit_mtc_whitelist_title">Dashwheel ébren tartása</string>
     <string name="unit_mtc_whitelist_detail">Vegye fel a Dashwheelt a fejegység alvási engedélylistájára (a BootControl alkalmazásába vagy a módosított ROM beállításaiba). Különben a firmware leállítja a gyújtás levételekor.</string>
     <string name="unit_reglink_duraspeed_title">DuraSpeed kikapcsolása</string>

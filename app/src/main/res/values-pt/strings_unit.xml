@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The head unit firmware family and what it lets Dashwheel do (UnitPlatform, Settings, System, Head unit). -->
 <resources>
-    <string name="unit_fyt_keys_note">Precisa de uma shell; as apps do rádio perdem entretanto as teclas do volante</string>
+    <string name="unit_fyt_keys_note">Precisa de uma shell. Alguns rádios ficam com o volume e o silêncio e só cedem a tecla de voz</string>
     <string name="unit_mtc_whitelist_title">Manter o Dashwheel acordado</string>
     <string name="unit_mtc_whitelist_detail">Adicione o Dashwheel à lista branca de suspensão do rádio (a sua app BootControl, ou as definições da ROM modificada). Caso contrário o firmware pára-o quando a ignição se desliga.</string>
     <string name="unit_reglink_duraspeed_title">Desligar o DuraSpeed</string>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The head unit firmware family and what it lets Dashwheel do (UnitPlatform, Settings, System, Head unit). -->
 <resources>
-    <string name="unit_fyt_keys_note">Needs a shell; the firmware\'s own apps lose the wheel keys meanwhile</string>
+    <string name="unit_fyt_keys_note">Needs a shell. Some firmwares keep volume and mute and hand over only the voice key</string>
     <string name="unit_mtc_whitelist_title">Keep Dashwheel awake</string>
     <string name="unit_mtc_whitelist_detail">Add Dashwheel to the sleep whitelist of the unit (its BootControl app, or the ROM mod settings). Otherwise the firmware stops it when the ignition goes off.</string>
     <string name="unit_reglink_duraspeed_title">Turn DuraSpeed off</string>

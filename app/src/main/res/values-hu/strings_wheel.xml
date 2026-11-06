@@ -129,4 +129,6 @@
     <string name="wheel_monitor_no_root">Root nélkül itt csak az Android-gombok és a fejegység saját gombjai jelennek meg. A nyers bemenethez és a naplóhoz root kell.</string>
     <string name="wheel_log_match_label">A naplósor tartalmazza</string>
     <string name="wheel_log_hint">Minden alkalommal fut, amikor a fejegység naplójában ilyen szövegű sor jelenik meg. Rövidítse arra a részre, amely a gombot nevezi meg.</string>
+    <string name="wheel_unit_muted">Némítás be</string>
+    <string name="wheel_unit_unmuted">Némítás ki</string>
 </resources>

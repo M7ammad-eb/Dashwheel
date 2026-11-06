@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">Они будут стёрты из автомобиля навсегда. Сервису они нужны, чтобы найти неисправность.</string>
     <string name="vehicle_err_unit_bt_aa">Беспроводной Android Auto телефона занимает Bluetooth магнитолы, %1$s не может подключиться: выключите беспроводной Android Auto на телефоне</string>
     <string name="vehicle_err_unit_bt_restarted">Bluetooth магнитолы завис и был перезапущен: %1$s подключится через минуту</string>
+    <string name="vehicle_fuel_no_obd_bus">OBD этого автомобиля не сообщает уровень топлива. Определите его через CAN-блок.</string>
 </resources>

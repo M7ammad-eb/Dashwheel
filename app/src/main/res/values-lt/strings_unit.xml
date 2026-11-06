@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The head unit firmware family and what it lets Dashwheel do (UnitPlatform, Settings, System, Head unit). -->
 <resources>
-    <string name="unit_fyt_keys_note">Reikia apvalkalo; magnetolos programos tuo metu praranda vairo mygtukus</string>
+    <string name="unit_fyt_keys_note">Reikia apvalkalo. Kai kurios magnetolos pasilieka garsumą ir nutildymą ir perduoda tik balso mygtuką</string>
     <string name="unit_mtc_whitelist_title">Neleisti Dashwheel užmigti</string>
     <string name="unit_mtc_whitelist_detail">Įtraukite Dashwheel į magnetolos miego baltąjį sąrašą (jos BootControl programą arba modifikuotos ROM nustatymus). Kitaip programinė įranga ją sustabdo išjungus degimą.</string>
     <string name="unit_reglink_duraspeed_title">Išjungti DuraSpeed</string>

@@ -133,4 +133,6 @@
     <string name="wheel_monitor_no_root">Без root здесь видны только клавиши Android и собственные кнопки магнитолы. Сырой ввод и журнал требуют root.</string>
     <string name="wheel_log_match_label">Строка журнала содержит</string>
     <string name="wheel_log_hint">Срабатывает каждый раз, когда в журнале магнитолы появляется строка с этим текстом. Сократите его до части, которая называет кнопку.</string>
+    <string name="wheel_unit_muted">Без звука: вкл.</string>
+    <string name="wheel_unit_unmuted">Без звука: выкл.</string>
 </resources>

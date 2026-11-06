@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The head unit firmware family and what it lets Dashwheel do (UnitPlatform, Settings, System, Head unit). -->
 <resources>
-    <string name="unit_fyt_keys_note">Wymaga powłoki; aplikacje radia tracą w tym czasie przyciski kierownicy</string>
+    <string name="unit_fyt_keys_note">Wymaga powłoki. Niektóre radia zatrzymują głośność i wyciszenie, oddając tylko przycisk głosowy</string>
     <string name="unit_mtc_whitelist_title">Nie usypiaj Dashwheel</string>
     <string name="unit_mtc_whitelist_detail">Dodaj Dashwheel do białej listy uśpienia radia (jego aplikacja BootControl lub ustawienia zmodyfikowanego ROM-u). Inaczej firmware zatrzyma go po wyłączeniu zapłonu.</string>
     <string name="unit_reglink_duraspeed_title">Wyłącz DuraSpeed</string>

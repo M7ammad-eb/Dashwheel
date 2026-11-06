@@ -934,7 +934,7 @@ internal fun RangeCard(
                 Icon(Icons.Filled.LocalGasStation, null, tint = DashColors.Muted, modifier = Modifier.size(44.dp))
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    stringResource(if (canbox) R.string.vehicle_fuel_no_obd else R.string.vehicle_fuel_none),
+                    stringResource(if (!canbox) R.string.vehicle_fuel_none else if (McuReader.learningNeedsRoot) R.string.vehicle_fuel_no_obd else R.string.vehicle_fuel_no_obd_bus),
                     color = DashColors.Muted,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodySmall
@@ -1033,7 +1033,8 @@ internal fun RangeFinderDialog(onDismiss: () -> Unit) {
         McuReader.start()
         onDispose { McuReader.stop() }
     }
-    val entries by McuReader.entries.collectAsState()
+    // The MCU stream, or the values of another family's bus (FYT).
+    val entries by McuReader.monitorEntries.collectAsState()
     var typed by remember { mutableStateOf("") }
     var candidates by remember { mutableStateOf<List<RangeMapping>?>(null) }
 
@@ -1085,7 +1086,7 @@ internal fun RangeFinderDialog(onDismiss: () -> Unit) {
                 val found = candidates
                 when {
                     entries.isEmpty() ->
-                        Text(stringResource(R.string.vehicle_waiting_canbox), color = DashColors.Muted)
+                        Text(stringResource(McuReader.waitingRes), color = DashColors.Muted)
                     found == null -> Unit
                     found.isEmpty() ->
                         Text(stringResource(R.string.vehicle_range_none), color = DashColors.Warning, style = MaterialTheme.typography.bodySmall)
@@ -1160,7 +1161,8 @@ internal fun FuelFinderDialog(onDismiss: () -> Unit) {
         McuReader.start()
         onDispose { McuReader.stop() }
     }
-    val entries by McuReader.entries.collectAsState()
+    // The MCU stream, or the values of another family's bus (FYT).
+    val entries by McuReader.monitorEntries.collectAsState()
     // Capture A is restored from storage, so you can tap Capture A, close this,
     // drive for days, then reopen and Capture B against the same A.
     val savedA = remember { McuReader.loadFuelCaptureA() }
@@ -1256,7 +1258,7 @@ internal fun FuelFinderDialog(onDismiss: () -> Unit) {
                 Spacer(Modifier.height(6.dp))
                 when {
                     entries.isEmpty() ->
-                        Text(stringResource(R.string.vehicle_waiting_canbox), color = DashColors.Muted)
+                        Text(stringResource(McuReader.waitingRes), color = DashColors.Muted)
                     capA == null ->
                         Text(stringResource(R.string.vehicle_finder_step_a), color = DashColors.Muted, style = MaterialTheme.typography.bodySmall)
                     capB == null ->

@@ -129,4 +129,6 @@
     <string name="wheel_monitor_no_root">Sans root, seules les touches Android et celles de l\'unité apparaissent ici. L\'entrée brute et le journal demandent root.</string>
     <string name="wheel_log_match_label">La ligne du journal contient</string>
     <string name="wheel_log_hint">Agit chaque fois que le journal de l\'unité montre une ligne avec ce texte. Raccourcissez-le à la partie qui nomme le bouton.</string>
+    <string name="wheel_unit_muted">Muet activé</string>
+    <string name="wheel_unit_unmuted">Muet désactivé</string>
 </resources>

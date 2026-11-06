@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The head unit firmware family and what it lets Dashwheel do (UnitPlatform, Settings, System, Head unit). -->
 <resources>
-    <string name="unit_fyt_keys_note">Нужна оболочка; приложения магнитолы на это время теряют кнопки руля</string>
+    <string name="unit_fyt_keys_note">Нужна оболочка. Некоторые магнитолы оставляют себе громкость и отключение звука и отдают только голосовую кнопку</string>
     <string name="unit_mtc_whitelist_title">Не усыплять Dashwheel</string>
     <string name="unit_mtc_whitelist_detail">Добавьте Dashwheel в белый список сна магнитолы (её приложение BootControl или настройки модифицированной прошивки). Иначе прошивка остановит его при выключении зажигания.</string>
     <string name="unit_reglink_duraspeed_title">Выключить DuraSpeed</string>

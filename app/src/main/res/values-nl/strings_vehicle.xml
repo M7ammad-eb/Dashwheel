@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">Ze worden voorgoed uit de auto gewist. Een garage heeft ze nodig om een storing te vinden.</string>
     <string name="vehicle_err_unit_bt_aa">De draadloze Android Auto van een telefoon houdt de Bluetooth van het toestel bezet, %1$s kan niet verbinden: zet draadloze Android Auto uit op de telefoon</string>
     <string name="vehicle_err_unit_bt_restarted">De Bluetooth van het toestel hing en is herstart: %1$s maakt over een minuut weer verbinding</string>
+    <string name="vehicle_fuel_no_obd_bus">De OBD van deze auto geeft geen brandstof door. Leer het in plaats daarvan van de CAN-box.</string>
 </resources>

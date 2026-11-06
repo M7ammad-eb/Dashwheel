@@ -129,4 +129,6 @@
     <string name="wheel_monitor_no_root">Without root only Android keys and the unit\'s own keys show here. The raw input and the log need root.</string>
     <string name="wheel_log_match_label">Log line contains</string>
     <string name="wheel_log_hint">Runs each time the unit\'s log shows a line with this text. Shorten it to the part that names the button.</string>
+    <string name="wheel_unit_muted">Mute on</string>
+    <string name="wheel_unit_unmuted">Mute off</string>
 </resources>

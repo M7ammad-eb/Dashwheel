@@ -129,4 +129,6 @@
     <string name="wheel_monitor_no_root">Ohne Root erscheinen hier nur Android-Tasten und die eigenen Tasten des Radios. Roheingabe und Protokoll brauchen Root.</string>
     <string name="wheel_log_match_label">Protokollzeile enthält</string>
     <string name="wheel_log_hint">Läuft jedes Mal, wenn das Protokoll des Radios eine Zeile mit diesem Text zeigt. Kürze ihn auf den Teil, der die Taste benennt.</string>
+    <string name="wheel_unit_muted">Stumm an</string>
+    <string name="wheel_unit_unmuted">Stumm aus</string>
 </resources>

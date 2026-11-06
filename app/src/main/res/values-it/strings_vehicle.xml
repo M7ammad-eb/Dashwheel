@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">Vengono cancellati dall\'auto per sempre. A un\'officina servono per trovare un guasto.</string>
     <string name="vehicle_err_unit_bt_aa">L\'Android Auto wireless di un telefono tiene occupato il Bluetooth dell\'autoradio e %1$s non può collegarsi: disattiva Android Auto wireless sul telefono</string>
     <string name="vehicle_err_unit_bt_restarted">Il Bluetooth dell\'autoradio era bloccato ed è stato riavviato: %1$s si ricollega tra un minuto</string>
+    <string name="vehicle_fuel_no_obd_bus">L\'OBD di quest\'auto non fornisce il carburante. Rilevalo dalla centralina CAN.</string>
 </resources>

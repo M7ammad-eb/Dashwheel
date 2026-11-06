@@ -129,4 +129,6 @@
     <string name="wheel_monitor_no_root">Sem root só aparecem aqui as teclas Android e as próprias do rádio. A entrada em bruto e o registo precisam de root.</string>
     <string name="wheel_log_match_label">A linha do registo contém</string>
     <string name="wheel_log_hint">Age sempre que o registo do rádio mostra uma linha com este texto. Encurte-o à parte que nomeia o botão.</string>
+    <string name="wheel_unit_muted">Silêncio ligado</string>
+    <string name="wheel_unit_unmuted">Silêncio desligado</string>
 </resources>

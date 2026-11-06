@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The head unit firmware family and what it lets Dashwheel do (UnitPlatform, Settings, System, Head unit). -->
 <resources>
-    <string name="unit_fyt_keys_note">Nécessite un shell ; les applis de l\'autoradio perdent les touches du volant pendant ce temps</string>
+    <string name="unit_fyt_keys_note">Nécessite un shell. Certains autoradios gardent le volume et le muet, et ne cèdent que la touche vocale</string>
     <string name="unit_mtc_whitelist_title">Garder Dashwheel éveillé</string>
     <string name="unit_mtc_whitelist_detail">Ajoutez Dashwheel à la liste blanche de veille de l\'autoradio (son appli BootControl, ou les réglages de la ROM modifiée). Sinon le firmware l\'arrête à la coupure du contact.</string>
     <string name="unit_reglink_duraspeed_title">Désactiver DuraSpeed</string>

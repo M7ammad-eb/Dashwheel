@@ -133,4 +133,6 @@
     <string name="wheel_monitor_no_root">Be root čia rodomi tik Android klavišai ir pačios magnetolos mygtukai. Neapdorotai įvesčiai ir žurnalui reikia root.</string>
     <string name="wheel_log_match_label">Žurnalo eilutėje yra</string>
     <string name="wheel_log_hint">Veikia kaskart, kai magnetolos žurnale pasirodo eilutė su šiuo tekstu. Sutrumpinkite jį iki dalies, kuri įvardija mygtuką.</string>
+    <string name="wheel_unit_muted">Nutildyta</string>
+    <string name="wheel_unit_unmuted">Garsas grąžintas</string>
 </resources>

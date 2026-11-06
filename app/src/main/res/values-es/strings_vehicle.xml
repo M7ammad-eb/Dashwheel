@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">Se borran del coche para siempre. Un taller los necesita para encontrar una avería.</string>
     <string name="vehicle_err_unit_bt_aa">El Android Auto inalámbrico de un móvil mantiene ocupado el Bluetooth del equipo y %1$s no puede conectarse: desactiva Android Auto inalámbrico en el móvil</string>
     <string name="vehicle_err_unit_bt_restarted">El Bluetooth del equipo estaba bloqueado y se ha reiniciado: %1$s se vuelve a conectar en un minuto</string>
+    <string name="vehicle_fuel_no_obd_bus">El OBD de este coche no informa del combustible. Apréndelo desde la caja CAN.</string>
 </resources>

@@ -20,6 +20,7 @@ import com.openauto.dash.PhoneBridge
 import com.openauto.dash.PhoneCall
 import com.openauto.dash.PopupTakeover
 import com.openauto.dash.R
+import com.openauto.dash.Radar
 import com.openauto.dash.SignalCatalogue
 import com.openauto.dash.SleepSurvival
 import com.openauto.dash.SysProps
@@ -39,14 +40,17 @@ import com.openauto.dash.VolumeControl
 import com.openauto.unitproto.UnitFamily
 import com.openauto.unitproto.fyt.FytBt
 import com.openauto.unitproto.fyt.FytCanbus
+import com.openauto.unitproto.fyt.FytFrames
 import com.openauto.unitproto.fyt.FytKey
 import com.openauto.unitproto.fyt.FytMain
 import com.openauto.unitproto.fyt.FytModules
 import com.openauto.unitproto.fyt.FytProtocol
+import com.openauto.unitproto.fyt.FytSound
 import com.openauto.unitproto.fyt.FytVw
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -84,6 +88,8 @@ internal class FytAdapter(context: Context) : UnitAdapter {
             if (hasServer) {
                 add(CapClaim(Cap.VEHICLE_BUS))
                 add(CapClaim(Cap.SPEED_RPM))
+                add(CapClaim(Cap.RADAR))
+                add(CapClaim(Cap.HEADLIGHTS))
                 add(CapClaim(Cap.UNIT_KEYS, Need.SHELL, R.string.unit_fyt_keys_note))
                 add(CapClaim(Cap.PHONE_BRIDGE))
             }
@@ -132,12 +138,20 @@ internal class FytCanbusSource(private val toolkit: FytToolkit) : VehicleBusSour
     private var out: Publisher? = null
     private var raw: ((String, String) -> Unit)? = null
     private var module: FytToolkit.FytModule? = null
+    private var mainModule: FytToolkit.FytModule? = null
     private val watched = LinkedHashSet<Int>()
     private val registered = HashSet<Int>()
     private var sniffing = false
     @Volatile private var canbusId: Int? = null
 
     private val callback by lazy { FytToolkit.FytCallback(toolkit.feed, ::onUpdate) }
+    private val mainCallback by lazy { FytToolkit.FytCallback(toolkit.feed, ::onMainUpdate) }
+
+    /** Lights on seen once: the input is wired, so its "off" is believed too (an unwired one says 0 for ever). */
+    private var illWired = false
+    private var front: List<Int?> = emptyList()
+    private var rear: List<Int?> = emptyList()
+    private var radarAt = 0L
 
     override fun start(context: Context, publisher: Publisher, raw: (String, String) -> Unit) {
         if (out != null) return
@@ -155,11 +169,13 @@ internal class FytCanbusSource(private val toolkit: FytToolkit) : VehicleBusSour
         module = m
         registered.clear()
         register(m, FytCanbus.GENERIC.toList() + FytVw.CODES.toList() + watched + if (sniffing) FytCanbus.SNIFF_RANGE.toList() else emptyList())
+        mainModule = toolkit.module(FytModules.MAIN)?.also { it.register(mainCallback, FytMain.U_ILL) }
         _listening.value = true
     }
 
     private fun dropped() {
         module = null
+        mainModule = null
         registered.clear()
         _listening.value = false
     }
@@ -204,8 +220,44 @@ internal class FytCanbusSource(private val toolkit: FytToolkit) : VehicleBusSour
             }
             FytCanbus.U_CUR_SPEED -> unitBusSpeed(o, FytCanbus.speedKmh(ints))
             FytCanbus.U_ENGINE_SPEED -> unitBusRpm(o, FytCanbus.rpm(ints))
+            FytFrames.U_FRAMES -> onFrame(o, ints)
             else -> if (code in FytVw.CODES && FytVw.isVw(CarProfileStore.current.make)) onVw(o, code, ints)
         }
+    }
+
+    /**
+     * A decoder frame of 1019: the parking sensors when it is a radar frame.
+     * They are only sent while something is in range, so the sensors go back
+     * to clear when the other frames (the clock, about every second) come
+     * alone for a while.
+     */
+    private fun onFrame(o: Publisher, ints: IntArray?) {
+        val now = SystemClock.elapsedRealtime()
+        val levels = FytFrames.radarLevels(ints)
+        if (levels == null) {
+            if (radarAt != 0L && now - radarAt > RADAR_QUIET_MS) {
+                radarAt = 0L
+                front = front.map { l -> l?.let { 0 } }
+                rear = rear.map { l -> l?.let { 0 } }
+                o.put(K.RADAR, Radar(front, rear, emptyList(), emptyList()))
+            }
+            return
+        }
+        if (FytFrames.frameId(ints) == FytFrames.FRAME_REAR_RADAR) rear = levels else front = levels
+        radarAt = now
+        UnitPlatform.markUsed(Cap.RADAR)
+        o.put(K.RADAR, Radar(front, rear, emptyList(), emptyList()))
+    }
+
+    private fun onMainUpdate(code: Int, ints: IntArray?, flts: FloatArray?, strs: Array<String?>?) {
+        val o = out ?: return
+        raw?.let { r -> for ((k, v) in FytKey.values(FytModules.MAIN, code, ints, flts, strs)) r(k, v) }
+        if (code != FytMain.U_ILL) return
+        val on = when (ints?.firstOrNull()) { 1 -> true; 0 -> false; else -> return }
+        if (on && !illWired) { illWired = true; Log.i(TAG, "the lights input is wired: headlights from it") }
+        if (!illWired) return
+        UnitPlatform.markUsed(Cap.HEADLIGHTS)
+        o.put(K.HEADLIGHTS, on)
     }
 
     private fun onVw(o: Publisher, code: Int, ints: IntArray?) {
@@ -221,6 +273,7 @@ internal class FytCanbusSource(private val toolkit: FytToolkit) : VehicleBusSour
 
     companion object {
         private const val TAG = "FytCanbus"
+        private const val RADAR_QUIET_MS = 1_500L
     }
 }
 
@@ -245,6 +298,8 @@ internal class FytKeys(private val app: Context, private val toolkit: FytToolkit
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var onKey: ((UnitKeyPress) -> Unit)? = null
     private var module: FytToolkit.FytModule? = null
+    private var sound: FytToolkit.FytModule? = null
+    private var lastMute: Int? = null
     private var registeredAt = 0L
     private var previousType: String? = null
 
@@ -260,11 +315,37 @@ internal class FytKeys(private val app: Context, private val toolkit: FytToolkit
         }
     }
 
+    /**
+     * Mute as the firmware set it: it keeps the wheel's mute key to itself,
+     * so its going on and off is handed on as a made-up key the map can bind
+     * (pause the podcast). The first value is the current one, not a press.
+     */
+    private val soundCallback by lazy {
+        FytToolkit.FytCallback(toolkit.feed) { code, ints, _, _ ->
+            if (code != FytSound.U_MUTE) return@FytCallback
+            val now = ints?.firstOrNull() ?: return@FytCallback
+            val before = lastMute
+            lastMute = now
+            if (before == null || before == now) return@FytCallback
+            onKey?.invoke(UnitKeyPress(if (now == 1) FytSound.KEY_MUTED else FytSound.KEY_UNMUTED, down = true))
+        }
+    }
+
     /** Binds the toolkit whatever the driver chose, so the keys can be taken the moment they are asked for ([setTaking]). */
     override fun start(context: Context, onKey: (UnitKeyPress) -> Unit) {
         if (this.onKey != null) return
         this.onKey = onKey
-        toolkit.onConnection { up -> if (up) { if (_taking.value) subscribe() } else { module = null; _listening.value = false } }
+        toolkit.onConnection { up ->
+            if (up) {
+                lastMute = null
+                sound = toolkit.module(FytModules.SOUND)?.also { it.register(soundCallback, FytSound.U_MUTE) }
+                if (_taking.value) subscribe()
+            } else {
+                module = null
+                sound = null
+                _listening.value = false
+            }
+        }
         toolkit.connect()
     }
 
@@ -303,20 +384,35 @@ internal class FytKeys(private val app: Context, private val toolkit: FytToolkit
         val m = toolkit.module(FytModules.MAIN) ?: run { Log.w(TAG, "no MAIN module: no unit keys"); return }
         module = m
         registeredAt = SystemClock.elapsedRealtime()
-        if (!m.register(callback, FytMain.U_KEY)) return
+        if (!m.register(callback, FytMain.U_KEY)) { module = null; Log.w(TAG, "MAIN module refused the key registration: no unit keys"); return }
         scope.launch {
             val was = SysProps.get(FytProtocol.PROP_CARLINK_TYPE).orEmpty()
-            if (was == FytProtocol.CARLINK_TAKE_KEYS) { _listening.value = true; return@launch }
-            val out = runCatching { DockShell.shell(app, "setprop ${FytProtocol.PROP_CARLINK_TYPE} ${FytProtocol.CARLINK_TAKE_KEYS}") }
-                .getOrElse { "shell failed: ${it.message}" }
-            val ok = SysProps.get(FytProtocol.PROP_CARLINK_TYPE) == FytProtocol.CARLINK_TAKE_KEYS
-            if (ok) previousType = was.ifEmpty { "0" }
-            _listening.value = ok
-            Log.i(TAG, if (ok) "took the unit's keys (${FytProtocol.PROP_CARLINK_TYPE} was \"$was\")" else "could not take the unit's keys: ${out.trim().ifEmpty { "no answer" }}")
+            if (was == FytProtocol.CARLINK_TAKE_KEYS) { _listening.value = true; Log.i(TAG, "the unit's keys were already ours"); return@launch }
+            // sys.* is gone after every reboot, and the root shell may not be up yet at boot: a few tries.
+            repeat(TAKE_TRIES) { attempt ->
+                val out = runCatching { DockShell.shell(app, "setprop ${FytProtocol.PROP_CARLINK_TYPE} ${FytProtocol.CARLINK_TAKE_KEYS}") }
+                    .getOrElse { "shell failed: ${it.message}" }
+                val ok = SysProps.get(FytProtocol.PROP_CARLINK_TYPE) == FytProtocol.CARLINK_TAKE_KEYS
+                if (ok) {
+                    previousType = was.ifEmpty { "0" }
+                    _listening.value = true
+                    Log.i(TAG, "took the unit's keys (${FytProtocol.PROP_CARLINK_TYPE} was \"$was\")")
+                    return@launch
+                }
+                Log.w(TAG, "could not take the unit's keys (try ${attempt + 1}): ${out.trim().ifEmpty { "no answer" }}")
+                if (!_taking.value) return@launch
+                delay(TAKE_RETRY_MS)
+            }
+            _listening.value = false
         }
     }
 
-    override fun nameRes(code: Int): Int? = if (code == FytMain.KEY_VOICE) R.string.wheel_unit_voice else null
+    override fun nameRes(code: Int): Int? = when (code) {
+        FytMain.KEY_VOICE -> R.string.wheel_unit_voice
+        FytSound.KEY_MUTED -> R.string.wheel_unit_muted
+        FytSound.KEY_UNMUTED -> R.string.wheel_unit_unmuted
+        else -> null
+    }
 
     companion object {
         private const val TAG = "FytKeys"
@@ -325,6 +421,8 @@ internal class FytKeys(private val app: Context, private val toolkit: FytToolkit
         /** In debug builds the emulator harness turns the keys on with `setprop persist.dashwheel.fytkeys 1`. */
         private const val DEBUG_PROP = "persist.dashwheel.fytkeys"
         private const val REPLAY_MS = 800L
+        private const val TAKE_TRIES = 4
+        private const val TAKE_RETRY_MS = 10_000L
 
         fun enabled(context: Context): Boolean =
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_TAKE, false) ||

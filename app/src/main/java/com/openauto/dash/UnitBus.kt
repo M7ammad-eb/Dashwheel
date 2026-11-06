@@ -69,12 +69,22 @@ object UnitBus {
 
     private fun rawValue(key: String, value: String) {
         SignalSources.busValue(key, value)
-        synchronized(rawLatest) {
+        val entry = synchronized(rawLatest) {
             if (rawLatest[key]?.hex == value) return
-            rawLatest[key] = McuReader.Entry(key, -1, emptyList(), value, System.currentTimeMillis())
-            _rawEntries.value = rawLatest.values.toList()
+            McuReader.Entry(key, -1, wordOf(value), value, System.currentTimeMillis()).also {
+                rawLatest[key] = it
+                _rawEntries.value = rawLatest.values.toList()
+            }
         }
+        McuReader.busEntry(entry)
     }
+
+    /**
+     * A whole-number value as the two bytes of a big-endian word, so the range
+     * and fuel finders, made for the MCU's frames, can search and read it too.
+     */
+    internal fun wordOf(value: String): List<Int> =
+        value.toIntOrNull()?.takeIf { it in 0..0xFFFF }?.let { listOf(it shr 8, it and 0xFF) } ?: emptyList()
 
     /** Starts the family's bus, if the unit has one. */
     @Synchronized
@@ -88,6 +98,8 @@ object UnitBus {
             // What the bus last said is not the car any more: not for the keys, nor for a taught signal read from its raw values.
             onSilent = { publisher.clear(); publisher.up(false); SignalSources.clearBus() }
         )
+        // The range and fuel words learned from this bus: a bus that asks for each value follows them for good.
+        source.watch(McuReader.busKeys())
         source.start(context, WatchedPublisher(publisher, live)) { key, value ->
             live.heard()
             rawValue(key, value)

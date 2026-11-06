@@ -239,4 +239,5 @@
     <string name="vehicle_clear_confirm_body">They are erased from the car for good. A garage needs them to find a fault.</string>
     <string name="vehicle_err_unit_bt_aa">A phone\'s wireless Android Auto keeps the unit\'s Bluetooth busy, so %1$s can\'t connect: turn wireless Android Auto off on the phone</string>
     <string name="vehicle_err_unit_bt_restarted">The unit\'s Bluetooth was stuck and has been restarted: %1$s connects again in a minute</string>
+    <string name="vehicle_fuel_no_obd_bus">This car\'s OBD doesn\'t report fuel. Learn it from the car box instead.</string>
 </resources>
