@@ -146,6 +146,8 @@
     <string name="dash_theme_sporty_desc">Red performance cockpit</string>
     <string name="dash_theme_floating">Floating</string>
     <string name="dash_theme_floating_desc">No tile backgrounds: widgets and icons sit on the backdrop</string>
+    <string name="dash_theme_open">Open</string>
+    <string name="dash_theme_open_desc">Every widget redrawn with no background and no border, straight on the backdrop</string>
     <string name="dash_theme_orbit">Orbit</string>
     <string name="dash_theme_orbit_desc">Everything round: a spinning record, ring gauges, bubbles</string>
     <string name="dash_theme_cockpit">Cockpit</string>

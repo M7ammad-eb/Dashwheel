@@ -123,6 +123,8 @@
     <string name="dash_theme_sporty_desc">Czerwony sportowy kokpit</string>
     <string name="dash_theme_floating">Pływający</string>
     <string name="dash_theme_floating_desc">Bez tła kafelków: widżety i ikony leżą na tle</string>
+    <string name="dash_theme_open">Otwarty</string>
+    <string name="dash_theme_open_desc">Każdy widżet bez tła i bez ramki, wprost na tle</string>
     <string name="dash_theme_orbit">Orbita</string>
     <string name="dash_theme_orbit_desc">Wszystko okrągłe: kręcąca się płyta, wskaźniki pierścieniowe, bąbelki</string>
     <string name="dash_theme_cockpit">Kokpit</string>

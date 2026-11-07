@@ -33,6 +33,8 @@
     <string name="design_duo_desc">Sayı için bir renk bloğu, yanında ayrıntılar.</string>
     <string name="design_island">Ada</string>
     <string name="design_island_desc">Resim ve kontrollerle süzülen siyah bir kapsül.</string>
+    <string name="design_open">Açık</string>
+    <string name="design_open_desc">Arka plan ve çerçeve yok: değer doğrudan sayfanın üzerinde durur.</string>
     <string name="design_copper_cockpit">Bakır kokpit</string>
     <string name="design_copper_cockpit_desc">Keskin kesik köşeli siyah bir spor göstergenin çevresinde dönen eğik bakır kanatlar.</string>
     <string name="design_tri_led">Üçlü LED</string>

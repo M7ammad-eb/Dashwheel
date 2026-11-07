@@ -5,17 +5,21 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.openauto.dash.link.CarLog
 import java.io.File
 
 /**
- * The car's log, sent from its Settings for a bug report: saved as a file, and
+ * The car's log, sent from its Settings for a bug report: saved as a file (also
+ * copied to Download/Dashwheel), and
  * announced by a notification that opens the phone's share sheet on it (a mail,
  * a chat, a GitHub issue). Its second button opens the project's new-issue page
  * to attach the file to.
@@ -34,8 +38,23 @@ object CarLogStore {
             dir.listFiles()?.sortedBy { it.lastModified() }?.dropLast(KEEP - 1)?.forEach { it.delete() }
             File(dir, log.title.replace(Regex("[^A-Za-z0-9._-]+"), "-") + ".txt").apply { writeText(log.text) }
         }.getOrNull() ?: return false
+        saveToDownloads(context, file)
         post(context, log, file)
         return true
+    }
+
+    /** A copy in Download/Dashwheel, where a file manager or a PC over USB finds it. */
+    private fun saveToDownloads(context: Context, file: File) {
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, file.name)
+            put(MediaStore.Downloads.MIME_TYPE, "text/plain")
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Dashwheel")
+        }
+        runCatching {
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return
+            resolver.openOutputStream(uri)?.use { out -> file.inputStream().use { it.copyTo(out) } }
+        }
     }
 
     private fun post(context: Context, log: CarLog, file: File) {

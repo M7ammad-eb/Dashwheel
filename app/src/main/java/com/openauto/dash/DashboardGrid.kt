@@ -724,8 +724,11 @@ internal fun TileContent(
     }
     // A tile's own design beats the skin; its standard look is this same
     // routing with the design cleared (the skin's tile under a skin).
-    if (item is DashboardItem.BuiltinWidget && item.design != WidgetDesign.STANDARD) {
-        DesignedTile(item, env) {
+    // The Open look wears its design on every widget that has a face (framed ones and the bar have none, so no loop back here).
+    val open = item is DashboardItem.BuiltinWidget && item.design == WidgetDesign.STANDARD && DashColors.Open &&
+        item.kind !in FRAMED_KINDS && item.kind != BuiltinKind.DASH_BAR
+    if (item is DashboardItem.BuiltinWidget && (open || item.design != WidgetDesign.STANDARD)) {
+        DesignedTile(if (open) item.copy(design = WidgetDesign.OPEN) else item, env) {
             TileContent(
                 item.copy(design = WidgetDesign.STANDARD), editing, appsByPackage, media, mediaController, hasMediaAccess,
                 context, obdConnection, onConnectObd, onPickDevice, onLaunchApp, onLaunchSplitPair, onEditLaunchBar,

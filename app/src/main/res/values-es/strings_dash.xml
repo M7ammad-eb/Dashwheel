@@ -123,6 +123,8 @@
     <string name="dash_theme_sporty_desc">Cabina deportiva roja</string>
     <string name="dash_theme_floating">Flotante</string>
     <string name="dash_theme_floating_desc">Sin fondo en las tarjetas: widgets e iconos sobre el fondo</string>
+    <string name="dash_theme_open">Abierto</string>
+    <string name="dash_theme_open_desc">Cada widget redibujado sin fondo ni borde, directamente sobre el fondo</string>
     <string name="dash_theme_orbit">Órbita</string>
     <string name="dash_theme_orbit_desc">Todo redondo: un disco girando, indicadores en anillo, burbujas</string>
     <string name="dash_theme_cockpit">Cabina</string>

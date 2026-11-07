@@ -33,6 +33,8 @@
     <string name="design_duo_desc">Ein Farbblock für die Zahl, Details daneben.</string>
     <string name="design_island">Insel</string>
     <string name="design_island_desc">Eine schwebende schwarze Kapsel mit Bild und Tasten.</string>
+    <string name="design_open">Offen</string>
+    <string name="design_open_desc">Ohne Hintergrund und ohne Rahmen: die Anzeige steht direkt auf der Seite.</string>
     <string name="design_copper_cockpit">Kupfer-Cockpit</string>
     <string name="design_copper_cockpit_desc">Schräge Kupferklingen umlaufen ein Sportinstrument, schwarz mit abgeschnittenen Ecken.</string>
     <string name="design_tri_led">Tri-LED</string>

@@ -123,6 +123,8 @@
     <string name="dash_theme_sporty_desc">Cockpit sportif rouge</string>
     <string name="dash_theme_floating">Flottant</string>
     <string name="dash_theme_floating_desc">Sans fond de tuile : widgets et icônes posés sur l\'arrière-plan</string>
+    <string name="dash_theme_open">Ouvert</string>
+    <string name="dash_theme_open_desc">Chaque widget redessiné sans fond ni bordure, posé sur l\'arrière-plan</string>
     <string name="dash_theme_orbit">Orbite</string>
     <string name="dash_theme_orbit_desc">Tout en rondeur : vinyle qui tourne, jauges circulaires, bulles</string>
     <string name="dash_theme_cockpit">Cockpit</string>

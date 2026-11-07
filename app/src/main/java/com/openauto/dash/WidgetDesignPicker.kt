@@ -305,7 +305,7 @@ internal enum class DesignFamily(@StringRes val titleRes: Int) {
             design == WidgetDesign.STANDARD || design.isSignature -> null
             design.look == FaceLookKind.COPPER || design.look == FaceLookKind.PETROL -> COPPER
             design.look in CABIN_LOOKS -> CABINS
-            design.look == FaceLookKind.THEME -> THEME
+            design.look == FaceLookKind.THEME || design.look == FaceLookKind.OPEN -> THEME
             else -> MATERIALS
         }
     }
