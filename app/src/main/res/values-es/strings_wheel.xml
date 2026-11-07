@@ -35,6 +35,8 @@
     <string name="wheel_action_toggle_split">Pantalla dividida sí / no</string>
     <string name="wheel_action_screenshot">Captura de pantalla</string>
     <string name="wheel_action_play_pause">Reproducir/pausa</string>
+    <string name="wheel_action_play">Reproducir</string>
+    <string name="wheel_action_pause">Pausa</string>
     <string name="wheel_action_next">Pista siguiente</string>
     <string name="wheel_action_previous">Pista anterior</string>
     <string name="wheel_action_volume_up">Subir volumen</string>

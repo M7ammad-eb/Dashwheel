@@ -59,7 +59,7 @@ import kotlin.math.min
  * design the driver chose ([AlertStyle]; never full screen, it would hide the
  * reversing camera): the car from above with an arc per sensor, closer to the
  * car and redder as something gets near. Up while reversing, or while any
- * sensor sees something; gone a second after. Out of reverse it also goes
+ * sensor sees something on a car with front or side sensors; gone a second after. Out of reverse it also goes
  * once nothing has come closer for a while (the car stopped by a wall with its
  * radar on), or at a tap on it or beside it, and comes back when something
  * gets closer than it was, or in reverse. Drawn through the accessibility
@@ -84,9 +84,10 @@ object RadarOverlay {
     /** The car's radar as it would show, before the driver sends it away. */
     private val carRadar: StateFlow<Radar?> =
         combine(RomPopups.replaced, Vehicle.bus.value(K.RADAR), reversingFlow(), ReverseView.covering) { replaced, radar, reversing, reverseView ->
-            // The reverse view has its own radar.
+            // The reverse view has its own radar. Out of reverse, only for a car with
+            // front or side sensors: rear ones alone have nothing ahead to show (#157).
             radar.takeIf {
-                !reverseView && RomPopups.Kind.RADAR in replaced && it != null && it.present && (reversing || it.active)
+                !reverseView && RomPopups.Kind.RADAR in replaced && it != null && it.present && (reversing || (it.active && it.seesAhead))
             }
         }.stateIn(scope, SharingStarted.Eagerly, null)
 

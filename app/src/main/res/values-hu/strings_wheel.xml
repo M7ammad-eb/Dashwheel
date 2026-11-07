@@ -35,6 +35,8 @@
     <string name="wheel_action_toggle_split">Osztott képernyő be / ki</string>
     <string name="wheel_action_screenshot">Képernyőkép</string>
     <string name="wheel_action_play_pause">Lejátszás/szünet</string>
+    <string name="wheel_action_play">Lejátszás</string>
+    <string name="wheel_action_pause">Szünet</string>
     <string name="wheel_action_next">Következő szám</string>
     <string name="wheel_action_previous">Előző szám</string>
     <string name="wheel_action_volume_up">Hangerő fel</string>

@@ -386,6 +386,32 @@ class CarMediaController(private val context: Context) {
     }
 
     /**
+     * Whether there is a player to steer directly: a session, or the head
+     * unit's own player shown. Without one (no notification access, nothing
+     * played yet) the wheel falls back to a media key.
+     */
+    val steering: Boolean get() = DemoMode.isOn || stockShown != null || activeController != null
+
+    /** Plays whatever is current, and does nothing when it already plays: a wheel's "unmute" never pauses (#148). */
+    fun play() = playOrPause(play = true)
+
+    /** Pauses whatever is current, and does nothing when it is already paused: "mute" never starts the music (#148). */
+    fun pause() = playOrPause(play = false)
+
+    private fun playOrPause(play: Boolean) {
+        if (DemoMode.isOn) {
+            if (_mediaState.value.isPlaying != play) DemoMode.playPause()
+            return
+        }
+        stockShown?.let {
+            if (_mediaState.value.isPlaying != play) HeadUnitMedia.playPause(context, it)
+            return
+        }
+        val controls = activeController?.transportControls ?: return
+        runCatching { if (play) controls.play() else controls.pause() }
+    }
+
+    /**
      * Brings the player in front: the head unit's own one while it is the one
      * shown, else the app of the session playing, else the last one seen
      * playing, else the system's music app (issue #119: a tap on the media

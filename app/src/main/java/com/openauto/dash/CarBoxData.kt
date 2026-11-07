@@ -89,6 +89,11 @@ data class Radar(
     val active: Boolean get() = all.any { it != null && it in 1..MAX_LEVEL }
     /** Whether the car reports any sensor at all. */
     val present: Boolean get() = all.any { it != null }
+    /**
+     * Whether the car has a sensor that looks forward or to a side. Without one
+     * (rear sensors only), the radar has nothing to say out of reverse (#157).
+     */
+    val seesAhead: Boolean get() = (front + left + right).any { it != null }
     /** The closest level seen (1 = closest), or null when nothing is near. */
     val closest: Int? get() = all.filterNotNull().filter { it in 1..MAX_LEVEL }.minOrNull()
 

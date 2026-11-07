@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PropaneTank
 import androidx.compose.material.icons.filled.QuestionAnswer
@@ -113,11 +114,18 @@ internal enum class SteeringWheelAction(
     STOP_GUIDANCE(WheelActionGroup.NAVIGATION, R.string.wheel_action_stop_guidance, Icons.Filled.Close),
     LPG_FULL(WheelActionGroup.CAR, R.string.lpg_wheel_full, Icons.Filled.PropaneTank),
     LPG_SWITCH(WheelActionGroup.CAR, R.string.lpg_wheel_switch, Icons.Filled.SwapHoriz),
-    SCREEN_FOCUS(WheelActionGroup.SYSTEM, R.string.wheel_action_screen_focus, Icons.Filled.ConnectedTv);
+    SCREEN_FOCUS(WheelActionGroup.SYSTEM, R.string.wheel_action_screen_focus, Icons.Filled.ConnectedTv),
+    // Play and pause on their own, for a pair of keys such as an FYT unit's mute on / mute off (#148).
+    MEDIA_PLAY(WheelActionGroup.MEDIA, R.string.wheel_action_play, Icons.Filled.PlayArrow),
+    MEDIA_PAUSE(WheelActionGroup.MEDIA, R.string.wheel_action_pause, Icons.Filled.Pause);
 
     fun run(context: Context) {
         when (this) {
-            MEDIA_PLAY_PAUSE -> dispatchMediaKey(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+            // Straight to the player when one is known, as the media tile does: on some
+            // firmwares (FYT) a media key Dashwheel sends never reaches it (#148).
+            MEDIA_PLAY_PAUSE -> player(context)?.playPause() ?: dispatchMediaKey(context, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+            MEDIA_PLAY -> player(context)?.play() ?: dispatchMediaKey(context, KeyEvent.KEYCODE_MEDIA_PLAY)
+            MEDIA_PAUSE -> player(context)?.pause() ?: dispatchMediaKey(context, KeyEvent.KEYCODE_MEDIA_PAUSE)
             MEDIA_NEXT -> dispatchMediaKey(context, KeyEvent.KEYCODE_MEDIA_NEXT)
             MEDIA_PREVIOUS -> dispatchMediaKey(context, KeyEvent.KEYCODE_MEDIA_PREVIOUS)
             VOLUME_UP -> MediaVolume.raise(context, show = true)
@@ -231,6 +239,10 @@ internal enum class SteeringWheelAction(
     }
 
     /** Routed to whichever app holds the active media session, exactly like a hardware media button. */
+    /** The shared media controller when it has a player to steer, else null (the media key then). */
+    private fun player(context: Context): CarMediaController? =
+        CarMediaController.shared(context).takeIf { it.steering }
+
     private fun dispatchMediaKey(context: Context, keyCode: Int) {
         val audio = MediaVolume.audio(context)
         listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP).forEach { action ->

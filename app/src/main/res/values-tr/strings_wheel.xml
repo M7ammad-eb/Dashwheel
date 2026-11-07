@@ -35,6 +35,8 @@
     <string name="wheel_action_toggle_split">Bölünmüş ekran açık / kapalı</string>
     <string name="wheel_action_screenshot">Ekran görüntüsü</string>
     <string name="wheel_action_play_pause">Oynat/duraklat</string>
+    <string name="wheel_action_play">Oynat</string>
+    <string name="wheel_action_pause">Duraklat</string>
     <string name="wheel_action_next">Sonraki parça</string>
     <string name="wheel_action_previous">Önceki parça</string>
     <string name="wheel_action_volume_up">Sesi artır</string>
