@@ -35,6 +35,8 @@
     <string name="wheel_action_toggle_split">Geteilter Bildschirm ein / aus</string>
     <string name="wheel_action_screenshot">Screenshot</string>
     <string name="wheel_action_play_pause">Wiedergabe/Pause</string>
+    <string name="wheel_action_play">Wiedergabe</string>
+    <string name="wheel_action_pause">Pause</string>
     <string name="wheel_action_next">Nächster Titel</string>
     <string name="wheel_action_previous">Vorheriger Titel</string>
     <string name="wheel_action_volume_up">Lauter</string>

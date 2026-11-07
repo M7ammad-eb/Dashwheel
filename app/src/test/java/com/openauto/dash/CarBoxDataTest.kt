@@ -107,6 +107,9 @@ class CarBoxDataTest {
         assertTrue(r.present)
         assertTrue(r.active)
         assertEquals(1, r.closest)
+        // Rear sensors only: nothing to show out of reverse (#157).
+        assertFalse(r.seesAhead)
+        assertTrue(r.copy(front = listOf(null, 0, 0, null)).seesAhead)
     }
 
     @Test
