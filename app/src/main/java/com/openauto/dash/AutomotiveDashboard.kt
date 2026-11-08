@@ -1252,9 +1252,14 @@ fun AutomotiveDashboard(inSplitMode: Boolean = false) {
             closeSheets()
             switchLayout(next)
         },
+        // The apps button opens the drawer and, tapped again, closes it.
         onApps = {
-            closeSheets()
-            showAllApps = true
+            if (showAllApps) {
+                showAllApps = false
+            } else {
+                closeSheets()
+                showAllApps = true
+            }
         },
         onConnectObd = onConnectObd,
         onSplit = {
