@@ -364,9 +364,10 @@ private fun CompassFooter(locationState: State<Location?>) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        StatBlock(stringResource(R.string.info_compass_altitude), location?.takeIf { it.hasAltitude() }?.let { "${it.altitude.roundToInt()} m" } ?: "--")
+        // In the driver's units, as the compass face shows them (feet for an imperial driver).
+        StatBlock(stringResource(R.string.info_compass_altitude), location?.takeIf { it.hasAltitude() }?.let { u.heightText(it.altitude) } ?: "--")
         StatBlock(stringResource(R.string.info_compass_gps_speed), speedKmh?.let { u.speedText(it) } ?: "--")
-        StatBlock(stringResource(R.string.info_compass_accuracy), location?.let { "±${it.accuracy.roundToInt()} m" } ?: "--")
+        StatBlock(stringResource(R.string.info_compass_accuracy), location?.let { "±${u.heightText(it.accuracy.toDouble())}" } ?: "--")
     }
 }
 

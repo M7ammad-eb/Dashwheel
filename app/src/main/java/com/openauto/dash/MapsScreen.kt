@@ -142,12 +142,15 @@ internal object MapsScreen {
     }
 
     /** "Destination: Tour Eiffel", "Tour Eiffel, destination" and "9 Tour Eiffel" (the pin) give "Tour Eiffel". */
+    // Compiled once: cleaned() runs on every text piece of every accessibility event while Maps is up.
+    private val DESTINATION_HEADS = DESTINATION_WORDS.map { Regex("^$it\\s*[:：]\\s*", RegexOption.IGNORE_CASE) }
+    private val DESTINATION_TAILS = DESTINATION_WORDS.map { Regex("\\s*[,:：]\\s*$it\\s*$", RegexOption.IGNORE_CASE) }
+    private val CLOCK = Regex("""^\d{1,2}[:h]\d{2}""")
+
     internal fun cleaned(text: String): String {
         var t = text.trim()
-        for (word in DESTINATION_WORDS) {
-            val head = Regex("^$word\\s*[:：]\\s*", RegexOption.IGNORE_CASE)
-            val tail = Regex("\\s*[,:：]\\s*$word\\s*$", RegexOption.IGNORE_CASE)
-            t = t.replace(head, "").replace(tail, "")
+        for (i in DESTINATION_WORDS.indices) {
+            t = t.replace(DESTINATION_HEADS[i], "").replace(DESTINATION_TAILS[i], "")
         }
         t = t.replace(PIN, "")
         return t.trim()
@@ -156,5 +159,5 @@ internal object MapsScreen {
     private val FIGURE = Regex("""^[\d\s.,:hmkin%°•·/-]+(min|km|mi|m|h)?\s*$""", RegexOption.IGNORE_CASE)
 
     private fun looksLikeFigure(text: String): Boolean =
-        FIGURE.matches(text) || NavState.DISTANCE.matchEntire(text) != null || Regex("""^\d{1,2}[:h]\d{2}""").containsMatchIn(text)
+        FIGURE.matches(text) || NavState.DISTANCE.matchEntire(text) != null || CLOCK.containsMatchIn(text)
 }

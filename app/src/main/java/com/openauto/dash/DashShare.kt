@@ -42,7 +42,6 @@ object DashShare {
     const val PREFIX = "DW1:"
     private const val VERSION = 1
     /** The variant the shared page is parsed under: never one of the store's own. */
-    private const val VARIANT = "share"
     private val CODE = Regex("DW1:[A-Za-z0-9_-]+")
 
     /** Only what another unit can show: an Android widget is bound to this one. */
@@ -54,7 +53,7 @@ object DashShare {
             // The layout schema the cells are in: a code from before the finer grid has none, and is read as v1.
             .put("sv", DashboardStore.SCHEMA_VERSION)
             .put("up", share.upright)
-            .put("p", JSONObject(DashboardStore.serializePages(listOf(shareable(share.items)), VARIANT)).getJSONArray("pages").getJSONArray(0))
+            .put("p", JSONObject(DashboardStore.serializePagesPlain(listOf(shareable(share.items)))).getJSONArray("pages").getJSONArray(0))
         share.name?.takeIf { it.isNotBlank() }?.let { json.put("n", it.take(MAX_NAME)) }
         share.look?.let { l ->
             json.put("look", JSONObject()
@@ -74,7 +73,7 @@ object DashShare {
         val json = JSONObject(String(inflate(unbase64(code.removePrefix(PREFIX))), Charsets.UTF_8))
         if (json.optInt("v") > VERSION) return null
         val page = json.getJSONArray("p")
-        val items = DashboardStore.parsePages(JSONObject().put("schema", json.optInt("sv", 1)).put("pages", JSONArray().put(page)).toString(), VARIANT)
+        val items = DashboardStore.parsePagesPlain(JSONObject().put("schema", json.optInt("sv", 1)).put("pages", JSONArray().put(page)).toString())
             ?.firstOrNull() ?: return null
         val look = json.optJSONObject("look")?.let { l ->
             SharedLook(

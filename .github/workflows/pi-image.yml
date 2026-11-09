@@ -36,7 +36,8 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
-      - run: ./gradlew :display:installDist --stacktrace
+      # The display's own tests first: an image is flashed onto cards, not updated in place.
+      - run: ./gradlew :display:test :display:installDist --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
@@ -61,9 +62,11 @@ jobs:
         run: |
           # Artifacts lose the executable bit.
           chmod +x dashwheel-display/bin/*
-          sudo bash tools/pi/build-image.sh dashwheel-display dashwheel-second-screen.img.xz
+          # The base image is named before the build, so the release body names the one really used.
+          base_url=$(curl -fsI https://downloads.raspberrypi.com/raspios_lite_arm64_latest | sed -n 's/^location: *//Ip' | tr -d '\r')
+          echo "BASE=$(basename "$base_url" .img.xz)" >> "$GITHUB_ENV"
+          sudo env BASE_URL="$base_url" bash tools/pi/build-image.sh dashwheel-display dashwheel-second-screen.img.xz
           sha256sum dashwheel-second-screen.img.xz > dashwheel-second-screen.img.xz.sha256
-          echo "BASE=$(curl -fsI https://downloads.raspberrypi.com/raspios_lite_arm64_latest | sed -n 's/^location: .*\/\([^/]*\)\.img\.xz.*/\1/Ip' | tr -d '\r')" >> "$GITHUB_ENV"
 
       - name: Publish
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2

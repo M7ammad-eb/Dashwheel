@@ -202,6 +202,12 @@ object SpeedVolume {
     }
 
     private fun giveBack(app: Context) {
+        // Muted meanwhile: a step down on the unit would set its level and unmute it ([tick] holds off the same way).
+        if (!MediaVolume.byKeys.value && MediaVolume.isMuted(MediaVolume.audio(app))) {
+            appliedBy.clear()
+            boost = 0
+            return
+        }
         var tries = applied
         while (applied > 0 && tries-- > 0) {
             val moved = nudge(app, up = false)

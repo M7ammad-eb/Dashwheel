@@ -46,7 +46,10 @@ jobs:
           fi
           if [ -z "$tag" ]; then echo "::error::No beta to promote."; exit 1; fi
           if ! echo "$tag" | grep -Eq "$main_tag"; then echo "::error::$tag is not a build of main."; exit 1; fi
-          if [ "$(gh release view "$tag" --json isPrerelease --jq .isPrerelease)" != "true" ]; then
+          if ! pre=$(gh release view "$tag" --json isPrerelease --jq .isPrerelease 2>/dev/null); then
+            echo "::error::$tag: no such release."; exit 1
+          fi
+          if [ "$pre" != "true" ]; then
             echo "::error::$tag is already stable."; exit 1
           fi
 

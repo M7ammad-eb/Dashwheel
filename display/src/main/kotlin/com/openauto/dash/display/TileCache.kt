@@ -44,7 +44,9 @@ open class TileStore<T : Any>(
     /** A tile arrived: the picture is worth drawing again. */
     private val onLoaded: () -> Unit,
     private val fetch: (String, String) -> ByteArray?,
-    workers: Int
+    workers: Int,
+    /** Milliseconds that only go forward (the Pi's wall clock jumps when the head unit sets it). */
+    private val clock: () -> Long = { System.nanoTime() / 1_000_000 }
 ) {
     private val lock = Object()
     private val memory = object : LinkedHashMap<TileKey, T>(32, 0.75f, true) {
@@ -91,9 +93,11 @@ open class TileStore<T : Any>(
 
     /** Queued for fetching, unless at hand, being fetched, or recently refused. */
     private fun enqueue(keys: List<TileKey>, first: Boolean) {
-        val now = System.currentTimeMillis()
+        val now = clock()
         synchronized(lock) {
-            val wanted = keys.filter { it !in memory && it !in fetching && (failedUntil[it] ?: 0) < now && fileOf(it)?.isFile != true }
+            // Refusals that have rested their minute are forgotten: over a drive without internet, every tile passed would stay.
+            failedUntil.values.removeIf { it <= now }
+            val wanted = keys.filter { it !in memory && it !in fetching && it !in failedUntil && fileOf(it)?.isFile != true }
             if (wanted.isEmpty()) return
             if (first) {
                 val rest = queue.toList()
@@ -125,7 +129,7 @@ open class TileStore<T : Any>(
             synchronized(lock) {
                 fetching -= key
                 if (tile == null) {
-                    failedUntil[key] = System.currentTimeMillis() + RETRY_MS
+                    failedUntil[key] = clock() + RETRY_MS
                 } else {
                     memory[key] = tile
                 }
@@ -158,6 +162,9 @@ open class TileStore<T : Any>(
         if (files.size <= MAX_FILES) return
         files.sortedBy { it.lastModified() }.take(files.size - MAX_FILES).forEach { runCatching { it.delete() } }
     }
+
+    /** The tiles refused lately and still resting, for the tests. */
+    internal fun resting(): Set<TileKey> = synchronized(lock) { failedUntil.keys.toSet() }
 
     private fun fileOf(key: TileKey): File? = dir?.let { File(it, "${key.z}/${key.x}/${key.y}.$extension") }
 
@@ -212,8 +219,9 @@ class TileCache(
     userAgent: String,
     onLoaded: () -> Unit,
     fetch: (String, String) -> ByteArray? = { url, agent -> download(url, agent, MAX_BYTES) },
-    workers: Int = 2
-) : TileStore<BufferedImage>(dir, urlTemplate, userAgent, ::decodeImage, "png", MEMORY_TILES, onLoaded, fetch, workers), TileSource {
+    workers: Int = 2,
+    clock: () -> Long = { System.nanoTime() / 1_000_000 }
+) : TileStore<BufferedImage>(dir, urlTemplate, userAgent, ::decodeImage, "png", MEMORY_TILES, onLoaded, fetch, workers, clock), TileSource {
 
     override fun tile(z: Int, x: Int, y: Int): BufferedImage? = get(z, x, y)
 

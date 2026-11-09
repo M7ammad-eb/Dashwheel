@@ -346,10 +346,12 @@ object PhoneLink {
 
     fun forget(context: Context, id: String) {
         updatePhones(context) { phones -> phones.filter { it.id != id } }
-        session?.takeIf { it.pairingId == id }?.close()
-        // A phone no longer paired takes its contacts with it.
-        editLists { PhoneLists() }
-        _notificationsOn.value = false
+        // The phone connected now goes with its contacts and its notifications; another's leave the connected one's alone.
+        if (session?.pairingId == id) {
+            session?.close()
+            editLists { PhoneLists() }
+            _notificationsOn.value = false
+        }
         refreshIdleState()
     }
 

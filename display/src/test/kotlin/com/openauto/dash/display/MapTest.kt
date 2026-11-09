@@ -51,6 +51,25 @@ class MapTest {
     }
 
     @Test
+    fun refusalsAreForgottenOnceTheyHaveRested() {
+        val fetched = java.util.concurrent.CopyOnWriteArrayList<String>()
+        var now = 1_000_000L
+        val cache = TileCache(null, "https://tiles.test/{z}/{x}/{y}.png", 16, "test", onLoaded = {}, fetch = { url, _ -> fetched += url; null }, workers = 1, clock = { now })
+        assertNull(cache.tile(16, 1, 1))
+        waitFor("the refusal") { cache.resting() == setOf(TileKey(16, 1, 1)) }
+        // Asked again within its minute: left alone.
+        assertNull(cache.tile(16, 1, 1))
+        Thread.sleep(50)
+        assertEquals(1, fetched.size)
+        // A minute on, the next ask drops it from the list rather than keeping every tile of the drive.
+        now += TileStore.RETRY_MS + 1
+        assertNull(cache.tile(16, 2, 2))
+        assertTrue(TileKey(16, 1, 1) !in cache.resting())
+        waitFor("the second refusal") { cache.resting() == setOf(TileKey(16, 2, 2)) }
+        assertEquals(2, fetched.size)
+    }
+
+    @Test
     fun tilesAreFetchedOnceKeptOnTheCardAndRefusalsRest() {
         val fetched = java.util.concurrent.CopyOnWriteArrayList<String>()
         val loaded = java.util.concurrent.atomic.AtomicInteger()

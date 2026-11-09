@@ -5,6 +5,7 @@ package com.openauto.dash
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -422,7 +423,7 @@ fun AutomotiveDashboard(inSplitMode: Boolean = false) {
     LaunchedEffect(wantedMoment, dismissedMoment) {
         val target = wantedMoment?.takeIf { it != dismissedMoment }
         while (target != shownMoment && (
-                System.currentTimeMillis() - lastTouch[0] < MOMENT_TOUCH_QUIET_MS ||
+                SystemClock.elapsedRealtime() - lastTouch[0] < MOMENT_TOUCH_QUIET_MS ||
                     editing || showTemplates || fillPage != null || showMoments || ui.fullScreenSheet
                 )
         ) delay(500)
@@ -697,29 +698,35 @@ fun AutomotiveDashboard(inSplitMode: Boolean = false) {
     // tile is not on the new page; waiting for the old page to be disposed left
     // a strip of the window visible for a few seconds after the swipe. They are
     // parked aside, still running, so a navigation or a song goes on.
-    LaunchedEffect(currentPage, pages, layout) {
+    fun insideApps(items: List<DashboardItem>) = items.mapNotNullTo(HashSet()) {
+        when {
+            it is DashboardItem.BuiltinWidget && it.kind == BuiltinKind.MAPS_INSIDE -> EmbeddedApp.MAPS_PACKAGE
+            it is DashboardItem.AppWindow && it.runsInside(insideAllowed) -> it.packageName
+            else -> null
+        }
+    }
+    // The apps in windows and inside tiles, page by page: what the two effects
+    // below act on. Keyed on this rather than on the pages, because a nudge, a
+    // zoom step or an Undo while arranging changes neither, and each one cost a
+    // privileged window listing and a parse of the other arrangement.
+    val appsPlaced = remember(pages, layout, insideAllowed) { pages.map { windowApps(it) to insideApps(it) } }
+    LaunchedEffect(currentPage, appsPlaced) {
         PipAnchor.placedPackages.value = windowAppsEverywhere()
-        PipAnchor.stashAllExcept(context, windowApps(pages.getOrNull(currentPage).orEmpty()))
+        PipAnchor.stashAllExcept(context, appsPlaced.getOrNull(currentPage)?.first.orEmpty())
     }
     // An app inside a tile runs until the last tile showing it goes, in either
     // arrangement; then its display is closed and the app with it (EmbeddedApp).
     // One the arrangement on screen shows in a window instead (Maps docked
     // beside the pages) is let go, so that window can have it.
-    LaunchedEffect(pages, layout, tabsMode, mapApp) {
+    LaunchedEffect(appsPlaced, tabsMode, mapApp) {
         // A look at the other arrangement, not a load: loading it marked its
         // kinds as the placed ones in the add sheet and swapped its unknown
         // tiles into this arrangement's next save.
         val other = withContext(Dispatchers.IO) { DashboardStore.peek(context, otherVariant()).orEmpty() }
-        fun insideApps(items: List<DashboardItem>) = items.mapNotNullTo(HashSet()) {
-            when {
-                it is DashboardItem.BuiltinWidget && it.kind == BuiltinKind.MAPS_INSIDE -> EmbeddedApp.MAPS_PACKAGE
-                it is DashboardItem.AppWindow && it.runsInside(insideAllowed) -> it.packageName
-                else -> null
-            }
-        }
-        val here = pages.flatten()
-        EmbeddedApp.tilePages = buildMap { pages.forEachIndexed { page, items -> insideApps(items).forEach { putIfAbsent(it, page) } } }
-        val inside = EmbeddedApp.keptInside(insideApps(here), insideApps(other), windowApps(here)).toHashSet()
+        EmbeddedApp.tilePages = buildMap { appsPlaced.forEachIndexed { page, (_, inside) -> inside.forEach { putIfAbsent(it, page) } } }
+        val insideHere = appsPlaced.flatMapTo(HashSet()) { it.second }
+        val windowsHere = appsPlaced.flatMapTo(HashSet()) { it.first }
+        val inside = EmbeddedApp.keptInside(insideHere, insideApps(other), windowsHere).toHashSet()
         // The app under Canvas runs as long as it is there.
         if (tabsMode) mapApp?.let { inside += it }
         EmbeddedApp.releaseUnless(inside)
@@ -1439,7 +1446,8 @@ fun AutomotiveDashboard(inSplitMode: Boolean = false) {
                 awaitPointerEventScope {
                     while (true) {
                         awaitPointerEvent(PointerEventPass.Initial)
-                        lastTouch[0] = System.currentTimeMillis()
+                        // A clock GPS cannot set back: a jump would hold every moment off, or let one through under a finger.
+                        lastTouch[0] = SystemClock.elapsedRealtime()
                     }
                 }
             }
@@ -2044,7 +2052,10 @@ fun AutomotiveDashboard(inSplitMode: Boolean = false) {
                     .forEach { WidgetHostHolder.retire(context, it.appWidgetId) }
                 mutatePage(page) { items }
                 look?.let { l ->
-                    themeState.onMode(l.mode)
+                    // The look's mode alone, not the Home it was drawn around: the share
+                    // brings its own, just put on the page (onMode would replace it a frame later).
+                    themeMode = l.mode
+                    DashThemeStore.save(context, l.mode)
                     themeState.onAppearance(l.appearance)
                     themeState.onEffects(l.effects)
                     l.rail?.let { themeState.onRail(it) }

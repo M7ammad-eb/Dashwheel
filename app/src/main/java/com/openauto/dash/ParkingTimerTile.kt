@@ -134,7 +134,8 @@ internal fun ParkingTimerCard(modifier: Modifier = Modifier) {
     val onPhone by ParkingClock.onPhone.collectAsState()
     val units by Units.current.collectAsState()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(endsAt) { while (endsAt > 0) { now = System.currentTimeMillis(); delay(15_000) } }
+    // Ticks only while the timer runs: once it has passed, nothing is left to count down.
+    LaunchedEffect(endsAt) { while (endsAt > 0) { now = System.currentTimeMillis(); if (endsAt <= now) break; delay(15_000) } }
     val running = endsAt > now
     Card(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize().padding(DashSpace.Lg), verticalArrangement = Arrangement.SpaceBetween) {
@@ -191,11 +192,14 @@ internal fun parkingTimerFace(): WidgetFace {
     val endsAt by remember { ParkingClock.load(context) }.collectAsState()
     val units by Units.current.collectAsState()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(endsAt) { while (endsAt > 0) { now = System.currentTimeMillis(); delay(15_000) } }
+    // Ticks only while the timer runs: once it has passed, nothing is left to count down.
+    LaunchedEffect(endsAt) { while (endsAt > 0) { now = System.currentTimeMillis(); if (endsAt <= now) break; delay(15_000) } }
     val running = endsAt > now
     return WidgetFace(
         icon = Icons.Filled.LocalParking,
         title = BuiltinKind.PARKING_TIMER.label,
+        // The Road sign design draws a "P" for it (its else branch is a fuel pump).
+        sign = SignKind.PARKING,
         value = if (running) remaining(endsAt - now) else "--",
         textValue = true,
         caption = if (running) stringResource(R.string.widgets_park_until, units.time(Date(endsAt))) else stringResource(R.string.widgets_park_none),

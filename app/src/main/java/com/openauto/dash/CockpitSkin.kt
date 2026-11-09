@@ -921,13 +921,14 @@ private val LcdTwoLine = LcdBox(132f, 294f, 116f, 52f)
 private val LcdCompact = LcdBox(125f, 294f, 130f, 50f)
 
 /** Tachometer, 0–7 ×1000 r/min, red from 6; coolant and (when known) fuel sub-dials. */
-private fun tachFace(fuel: Boolean, compact: Boolean, w: DialWords) = DialFace(
-    labels = (0..7).map { it.toString() },
+private fun tachFace(fuel: Boolean, compact: Boolean, w: DialWords, scale: RevScale) = DialFace(
+    // Numbered per thousand up to the car's own top; red from its red line.
+    labels = (0..(scale.top / 1000f).roundToInt()).map { it.toString() },
     minor = if (compact) 2 else 4,
     numeral = if (compact) 36f else 32f,
     title = w.rpmTitle,
     lcd = if (compact) LcdCompact else LcdNormal,
-    red = (6f / 7f)..1f,
+    red = scale.redFrom..1f,
     subs = when {
         compact -> emptyList()
         fuel -> listOf(SubDial(147f, 247f, w.cold, w.hot, w.temp), SubDial(233f, 247f, w.empty, w.full, w.fuel))
@@ -1294,6 +1295,7 @@ private fun CockpitTelemetry(env: SkinTileEnv) {
     val words = dialWords()
     val rpmUnit = stringResource(R.string.cockpit_unit_rpm)
     val units = LocalUnits.current
+    val revScale = rememberRevScale()
 
     BoxWithConstraints(
         modifier = Modifier
@@ -1313,10 +1315,10 @@ private fun CockpitTelemetry(env: SkinTileEnv) {
         @Composable
         fun tach(side: Dp) {
             val compact = side < 230.dp
-            val face = remember(fuel != null, compact, words) { tachFace(fuel != null, compact, words) }
+            val face = remember(fuel != null, compact, words, revScale) { tachFace(fuel != null, compact, words, revScale) }
             ChromeDial(
                 face = face,
-                fraction = rpm?.let { it / SKIN_RPM_MAX },
+                fraction = rpm?.let { it / revScale.top },
                 subFractions = if (fuel != null) listOf(coolant, fuelFrac) else listOf(coolant),
                 live = live,
                 readout = rpm?.toString() ?: "--",
@@ -1585,7 +1587,7 @@ private fun MediaLcd(
                 Spacer(Modifier.width(10.dp))
                 // A long title scrolls a few times when it changes, then rests: a
                 // marquee redraws every frame for as long as it runs. None with effects off.
-                val scroll = DashColors.Effects != DashEffects.NONE
+                val scroll = LocalPageActive.current && DashColors.Effects != DashEffects.NONE
                 key(text) {
                     Text(
                         text,

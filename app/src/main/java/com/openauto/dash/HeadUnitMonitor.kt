@@ -253,16 +253,22 @@ internal object HeadUnitMonitor {
     /** A process line of `top -o PID,%CPU,RES,ARGS`. */
     internal data class TopProcess(val name: String, val cpuPct: Float, val ramMb: Int)
 
+    // Compiled once: the parsers run on every sample, over every line of top.
+    private val CPU_TOTAL = Regex("(\\d+)%cpu")
+    private val CPU_IDLE = Regex("(\\d+)%idle")
+    private val TOP_LINE = Regex("^\\s*(\\d+)\\s+([\\d.]+)\\s+(\\S+)\\s+(.+)$")
+    private val SPACES = Regex("\\s+")
+
     /** All cores' use from toybox top's header ("800%cpu ... 690%idle"), 0-100. */
     internal fun parseCpuPct(top: String): Int? {
-        val total = Regex("(\\d+)%cpu").find(top)?.groupValues?.get(1)?.toFloatOrNull() ?: return null
-        val idle = Regex("(\\d+)%idle").find(top)?.groupValues?.get(1)?.toFloatOrNull() ?: return null
+        val total = CPU_TOTAL.find(top)?.groupValues?.get(1)?.toFloatOrNull() ?: return null
+        val idle = CPU_IDLE.find(top)?.groupValues?.get(1)?.toFloatOrNull() ?: return null
         if (total <= 0f) return null
         return ((total - idle) / total * 100f).roundToInt().coerceIn(0, 100)
     }
 
     internal fun parseTopProcesses(top: String): List<TopProcess> = top.lines().mapNotNull { line ->
-        val m = Regex("^\\s*(\\d+)\\s+([\\d.]+)\\s+(\\S+)\\s+(.+)$").find(line) ?: return@mapNotNull null
+        val m = TOP_LINE.find(line) ?: return@mapNotNull null
         val name = m.groupValues[4].trim().substringBefore(' ')
         TopProcess(name, m.groupValues[2].toFloatOrNull() ?: 0f, parseMb(m.groupValues[3]))
     }
@@ -307,7 +313,7 @@ internal object HeadUnitMonitor {
      */
     internal fun parseThermal(text: String): Int? {
         val zones = text.lines().mapNotNull { line ->
-            val parts = line.trim().split(Regex("\\s+"))
+            val parts = line.trim().split(SPACES)
             if (parts.size < 2) return@mapNotNull null
             val raw = parts.last().toFloatOrNull() ?: return@mapNotNull null
             val c = if (raw > 1000f) raw / 1000f else raw

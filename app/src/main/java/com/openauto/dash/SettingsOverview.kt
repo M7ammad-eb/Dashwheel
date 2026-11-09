@@ -536,7 +536,10 @@ private fun Deep.titleRes(): Int = when (this) {
 
 /** Lower case without accents, so "eco" finds "Éco" and "volumen" finds "Volumen". */
 private fun fold(text: String): String =
-    Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "").lowercase()
+    Normalizer.normalize(text, Normalizer.Form.NFD).replace(MARKS, "").lowercase()
+
+// Compiled once: fold() runs for every entry's title, pages and detail at each typed character.
+private val MARKS = Regex("\\p{Mn}+")
 
 private class Found(val entry: SettingsEntry, val title: String, val path: String, val rank: Int)
 

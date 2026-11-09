@@ -587,7 +587,7 @@ private fun ShiftLights(m: TopBarModel, modifier: Modifier) {
     // A State, read only in the draw below: the revs move many times a second.
     val revs = remember { Vehicle.bus.value(K.RPM).map { it?.roundToInt() }.distinctUntilChanged() }.collectAsState(null)
     val profile by CarProfileStore.profile.collectAsState()
-    val redline = profile.redlineRpm ?: 4_500
+    val redline = profile.redlineRpm?.takeIf { it > 0 } ?: DEFAULT_REDLINE_RPM
     val shift = (redline * 0.78f).coerceIn(2_500f, 7_000f)
     val start = shift * 0.36f
     val rpm = remember(revs) { { revs.value } }

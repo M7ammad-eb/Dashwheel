@@ -200,7 +200,7 @@ private fun grantAccessAction(): FaceAction {
 private fun engineGauges(d: ObdData, rpmFirst: Boolean): List<FaceGauge> {
     val u = LocalUnits.current
     val speed = FaceGauge(stringResource(R.string.vehicle_speed), u.speed(d.speedKmh).toString(), u.speedUnit, d.speedKmh / 220f)
-    val rpm = FaceGauge(stringResource(R.string.vehicle_rpm), d.rpm.toString(), "rpm", d.rpm / 7000f)
+    val rpm = FaceGauge(stringResource(R.string.vehicle_rpm), d.rpm.toString(), "rpm", rememberRevScale().fraction(d.rpm))
     return (if (rpmFirst) listOf(rpm, speed) else listOf(speed, rpm)) + listOf(
         FaceGauge(stringResource(R.string.vehicle_coolant), u.temp(d.coolantTempC).toString(), u.tempUnit, d.coolantTempC / 130f),
         FaceGauge(stringResource(R.string.vehicle_battery), fmt("%.1f", d.voltage), "V", batteryFraction(d.voltage)),
@@ -248,7 +248,7 @@ private fun obdAllFace(env: SkinTileEnv): WidgetFace {
         title = BuiltinKind.OBD_ALL.label,
         value = d.rpm.toString(), unit = "rpm",
         caption = u.speedText(d.speedKmh),
-        fraction = d.rpm / 7000f,
+        fraction = rememberRevScale().fraction(d.rpm),
         gauges = engineGauges(d, rpmFirst = true),
         stats = listOfNotNull(
             FaceStat(stringResource(R.string.vehicle_speed), u.speedText(d.speedKmh)),
@@ -958,7 +958,8 @@ private fun filterFace(): WidgetFace {
     val call = filterCall(streak, LocalUnits.current.imperial)
     val drive = care.drive
     val last = care.filter.lastLongAt
-    val now = System.currentTimeMillis()
+    // Once a minute: "last long drive 3 h ago" otherwise stands still until the care state changes.
+    val now = rememberWallClock(60_000L).longValue
     // The real soot load, when the experimental reading finder got the car to give it up.
     val extra by PidExplorer.readings.collectAsState()
     val soot = extra[ExtraReading.SOOT_LOAD]?.value
@@ -1141,8 +1142,9 @@ private fun serviceFace(): WidgetFace {
     if (editing) UpkeepDialog(onDismiss = { editing = false })
     val reveal = rememberEditReveal()
     val lock = LocalDriveLock.current
-    val now = System.currentTimeMillis()
-    val dues = remember(state) { state.statuses(now) }
+    // Once an hour: a unit left on overnight otherwise keeps yesterday's "due in N days".
+    val now = rememberWallClock(3_600_000L).longValue
+    val dues = remember(state, now) { state.statuses(now) }
     val first = dues.firstOrNull { it.stage != UpkeepStage.UNKNOWN }
     val odo = state.odometer
     val u = LocalUnits.current

@@ -162,6 +162,11 @@ internal object Car3D {
             s.removeEntities(old.entities)
             assetLoader?.destroyAsset(old)
         }
+        // Nothing describes the destroyed asset while the next one loads: a model that fails
+        // to load (a foreign file in a pack) otherwise left its entities to be moved, lit and
+        // destroyed a second time.
+        asset = null; loaded = null
+        centres.clear(); hinges.clear(); named.clear()
         val loader = assetLoader ?: AssetLoader(e, UbershaderProvider(e), EntityManager.get()).also { assetLoader = it }
         val resources = resourceLoader ?: ResourceLoader(e).also { resourceLoader = it }
         val a = loader.createAsset(glb) ?: error("not a glb")
@@ -256,6 +261,7 @@ internal object Car3D {
         for (n in names) {
             val ent = named[n] ?: continue
             val ri = rm.getInstance(ent)
+            if (ri == 0) continue
             for (p in 0 until rm.getPrimitiveCount(ri)) rm.getMaterialInstanceAt(ri, p).setParameter("emissiveFactor", r, g, b)
         }
     }
@@ -287,7 +293,8 @@ internal object Car3D {
         // Doors swing about the vertical (glTF y); the tailgate and the bonnet about the car's width (-z).
         val r = if (name.startsWith("Hinge_door")) rotation(0f, 1f, 0f, deg * k) else rotation(0f, 0f, -1f, deg * k)
         val tm = e.transformManager
-        tm.setTransform(tm.getInstance(ent), times(rest, r))
+        val ti = tm.getInstance(ent)
+        if (ti != 0) tm.setTransform(ti, times(rest, r))
     }
 
     private fun destroy() {
@@ -746,6 +753,10 @@ private class Stage(context: Context) : Choreographer.FrameCallback {
         if (wasMoving && !moving) owed = true
         wasMoving = moving
         if (!moving && !opening && !pulsing && !owed) return
+        // Nothing to draw into yet (no surface, or a card whose model has none of the hinges it
+        // asks for and never attaches one): the surface's arrival wakes the stage again, so no
+        // frame is posted meanwhile; otherwise every hinge and glow was set at vsync for nothing.
+        if (swapChain == null || !ui.isReadyToRender) return
         // A pulse alone needs no more than 30 images a second.
         if (!moving && !opening && !owed && frameTimeNanos - lastDraw < 30_000_000L) { post(); return }
         val a = from

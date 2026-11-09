@@ -846,7 +846,7 @@ internal fun ObdAllCard(
                     Spacer(Modifier.height(8.dp))
                 }
                 g.rpm?.let {
-                    MeterChip(stringResource(R.string.vehicle_rpm), "$it", it / 7000f, DashColors.Tacho, false, Modifier.fillMaxWidth())
+                    MeterChip(stringResource(R.string.vehicle_rpm), "$it", rememberRevScale().fraction(it), DashColors.Tacho, false, Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
                 }
                 g.coolantTempC?.let {

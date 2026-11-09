@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -224,7 +225,8 @@ internal fun startGearEstimate(context: Context, bus: VehicleBus, scope: Corouti
 @Composable
 internal fun rememberGear(): State<GearReading> {
     val context = LocalContext.current
-    val gears = CarProfileStore.current.gears ?: 6
+    // As state: a gear count fetched or typed while the tile shows is taken up at once.
+    val gears = CarProfileStore.profile.collectAsState().value.gears ?: 6
     val state = remember { mutableStateOf(GearReading(Gear.Unknown, null, null, gears)) }
     LaunchedEffect(Unit) { CarBox.start(context) }
     LaunchedEffect(gears) {

@@ -8,6 +8,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaRecorder
 import android.os.Build
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CancellationException
@@ -311,7 +312,8 @@ object AskMechanic {
             val detector = SilenceDetector()
             while (isActive) {
                 delay(100)
-                when (detector.feed(r.amplitude(), System.currentTimeMillis())) {
+                // The unit's clock is set by GPS mid-drive; the silence windows want a clock that only goes forward.
+                when (detector.feed(r.amplitude(), SystemClock.elapsedRealtime())) {
                     SilenceDetector.Verdict.LISTEN -> Unit
                     SilenceDetector.Verdict.DONE -> return@launch finish(heard = true)
                     SilenceDetector.Verdict.NOTHING_HEARD -> return@launch finish(heard = false)

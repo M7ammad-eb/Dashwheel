@@ -84,8 +84,11 @@ class DisplayMessagesTest {
         assertNull(old.tempC)
         val oldHello = LinkCodec.decode("""{"t":"display_hello","name":"Pi","appVersion":"1.0","width":1024,"height":600}""".encodeToByteArray()) as DisplayHello
         assertEquals(1, oldHello.protocol)
-        // An older display skips the time message altogether, and the new fields of the readings.
-        assertNull(LinkCodec.decode("""{"t":"display_time","clock":5,"zoneOffsetMin":60}""".encodeToByteArray())?.let { null })
+        // The time message from an older head unit comes without the zone's name; a message of a kind
+        // this side doesn't know (a newer peer's) decodes to null, which is how an older display skips it.
+        assertEquals(DisplayTime(5, 60), LinkCodec.decode("""{"t":"display_time","clock":5,"zoneOffsetMin":60}""".encodeToByteArray()))
+        assertNull(LinkCodec.decode("""{"t":"display_time_v9","clock":5}""".encodeToByteArray()))
+        // An older display reads the readings without their new fields.
         assertNull((LinkCodec.decode("""{"t":"cluster_state","clock":5}""".encodeToByteArray()) as ClusterState).layout)
     }
 

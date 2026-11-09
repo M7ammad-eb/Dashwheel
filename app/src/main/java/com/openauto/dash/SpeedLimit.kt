@@ -2,6 +2,7 @@ package com.openauto.dash
 
 import android.content.Context
 import android.location.Location
+import android.os.SystemClock
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -244,14 +245,15 @@ internal object SpeedLimit {
         if (sign == null) signKmh = null
         val limit = sign ?: road?.limitKmh
         _limit.value = limit
-        if (nag.step(limit, kmh, System.currentTimeMillis()) && limit != null && SpokenEvents.isOn(context, SpokenEvent.SPEED_LIMIT)) {
+        // A clock that only goes forward: GPS sets the unit's time mid-drive, which would say the limit at once or never again.
+        if (nag.step(limit, kmh, SystemClock.elapsedRealtime()) && limit != null && SpokenEvents.isOn(context, SpokenEvent.SPEED_LIMIT)) {
             val app = AppLanguage.wrap(context)
             CarVoice.announce(app.getString(R.string.widgets_limit_say, Units.current.value.speed(limit)), InAppNav.locale(context))
         }
     }
 
     private fun fetch(lat: Double, lng: Double): List<LimitedRoad> {
-        val query = "[out:json][timeout:25];way(around:$RADIUS_M,$lat,$lng)[highway][maxspeed];out tags geom;"
+        val query = "[out:json][timeout:25];way(around:$RADIUS_M,${Overpass.coord(lat)},${Overpass.coord(lng)})[highway][maxspeed];out tags geom;"
         val elements = Overpass.query(query).optJSONArray("elements") ?: return emptyList()
         return (0 until elements.length()).mapNotNull { i ->
             val e = elements.optJSONObject(i) ?: return@mapNotNull null
@@ -320,6 +322,8 @@ internal fun speedLimitFace(): WidgetFace {
     return WidgetFace(
         icon = Icons.Filled.Speed,
         title = BuiltinKind.SPEED_LIMIT.label,
+        // The Road sign design draws the red ring for it (its else branch is a fuel pump).
+        sign = SignKind.SPEED,
         value = limit?.let { units.speed(it).toString() } ?: "--",
         unit = units.speedUnit,
         caption = stringResource(if (limit != null) R.string.widgets_limit_ok else if (down) R.string.widgets_osm_down else R.string.widgets_limit_unknown)

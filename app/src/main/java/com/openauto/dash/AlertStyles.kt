@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -713,6 +714,7 @@ internal fun FullScreenModal(onTap: () -> Unit, tone: Color = DashColors.Accent,
 @Composable
 internal fun <T : Any> rememberLast(value: T?): T? {
     val last = remember { mutableStateOf(value) }
-    if (value != null && last.value != value) last.value = value
+    // After the pass, not during it: a write to state just read here recomposed every alert twice.
+    SideEffect { if (value != null && last.value != value) last.value = value }
     return value ?: last.value
 }

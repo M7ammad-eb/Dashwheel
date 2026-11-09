@@ -140,7 +140,10 @@ class RoadWatchActivity : ComponentActivity() {
         override fun onDisplayRemoved(displayId: Int) = Unit
         // Turned in its holder (sideways, upright, either way up): no restart, so the frames are told.
         override fun onDisplayChanged(displayId: Int) {
-            analysis?.targetRotation = ContextCompat.getDisplayOrDefault(this@RoadWatchActivity).rotation
+            val rotation = ContextCompat.getDisplayOrDefault(this@RoadWatchActivity).rotation
+            analysis?.targetRotation = rotation
+            // The video too, or the clips recorded after the turn come out on their side.
+            recorder.value?.let { it.videoCapture.targetRotation = rotation }
         }
     }
 
@@ -693,7 +696,9 @@ private fun RoadControls(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val view by watch.view.collectAsState()
+    // Of the per-frame view only the three things shown here, so the controls don't recompose with every frame.
+    fun shown(v: RoadView) = Triple(v.lane.lines > 0, v.speedKmh?.roundToInt(), v.horizonSet)
+    val (laneSeen, speedKmh, horizonSet) = remember(watch) { watch.view.map(::shown).distinctUntilChanged() }.collectAsState(shown(watch.view.value)).value
     val rec by recorder.collectAsState()
     val link by LinkServer.state.collectAsState()
     val model by RoadModel.state.collectAsState()
@@ -708,13 +713,13 @@ private fun RoadControls(
                     color = Color.White, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    if (view.lane.lines > 0) stringResource(R.string.road_lane_seen) else stringResource(R.string.road_lane_looking),
+                    if (laneSeen) stringResource(R.string.road_lane_seen) else stringResource(R.string.road_lane_looking),
                     color = CompanionColors.Muted, style = MaterialTheme.typography.bodySmall
                 )
-                view.speedKmh?.let {
-                    Text(stringResource(R.string.road_speed, it.roundToInt()), color = CompanionColors.Muted, style = MaterialTheme.typography.bodySmall)
+                speedKmh?.let {
+                    Text(stringResource(R.string.road_speed, it), color = CompanionColors.Muted, style = MaterialTheme.typography.bodySmall)
                 }
-                if (!view.horizonSet) Text(stringResource(R.string.road_horizon_hint), color = CompanionColors.Muted, style = MaterialTheme.typography.bodySmall)
+                if (!horizonSet) Text(stringResource(R.string.road_horizon_hint), color = CompanionColors.Muted, style = MaterialTheme.typography.bodySmall)
                 battery?.let { (percent, charging) ->
                     if (!charging && percent < PLUG_IN_PERCENT) {
                         Text(stringResource(R.string.road_plug_in, percent), color = CompanionColors.Amber, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)

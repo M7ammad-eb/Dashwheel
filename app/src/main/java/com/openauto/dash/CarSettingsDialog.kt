@@ -367,7 +367,8 @@ private fun NumSpec(
         onValueChange = { typed ->
             text = typed
             val cleaned = typed.trim().replace(',', '.')
-            if (cleaned.isEmpty()) onChange(null) else cleaned.toDoubleOrNull()?.let { if (it >= 0) onChange(it) }
+            // A 0 is "unknown" for every figure here (no car has a 0 red line or 0 gears), not a value.
+            if (cleaned.isEmpty()) onChange(null) else cleaned.toDoubleOrNull()?.let { if (it > 0) onChange(it) else if (it == 0.0) onChange(null) }
         },
         label = { Text(label, maxLines = 1) },
         singleLine = true,

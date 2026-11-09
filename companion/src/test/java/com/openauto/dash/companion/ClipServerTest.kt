@@ -20,6 +20,8 @@ class ClipServerTest {
         File(clip, "clip.mp4").writeBytes(ByteArray(100))
         File(clip, "clip.json").writeText("{}")
         File(dir, "half-written").mkdirs()
+        // A video without its notes did not come out whole: not served.
+        File(dir, "20261025-101600-brake").apply { mkdirs() }.let { File(it, "clip.mp4").writeBytes(ByteArray(50)) }
         tmp.newFile("secret.txt")
     }
 
@@ -50,6 +52,7 @@ class ClipServerTest {
         assertEquals(notFound, get("/clips/${clip.name}/../../secret.txt?k=abc"))
         assertEquals(notFound, get("/clips/..%2F..%2Fsecret.txt/clip.mp4?k=abc"))
         assertEquals(notFound, get("/clips/half-written/clip.json?k=abc"))
+        assertEquals(notFound, get("/clips/20261025-101600-brake/clip.mp4?k=abc"))
         assertEquals(notFound, get("/other/${clip.name}/clip.mp4?k=abc"))
     }
 

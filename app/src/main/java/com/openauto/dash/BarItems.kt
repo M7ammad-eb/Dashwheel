@@ -345,9 +345,10 @@ private fun BarReadout(item: BarItem, m: TopBarModel) {
         BarItem.REVS -> {
             // Read where a readout uses it: the clock or the phone's battery doesn't follow the car's readings.
             val rpm = rememberGaugeInt(K.RPM)
+            val scale = rememberRevScale()
             MistralSegments(
-                stringResource(item.label), item.icon, rpm?.let { it / 7000f },
-                rpm?.let { String.format(Locale.getDefault(), "%,d", it) }, cells = 10, hotAbove = 0.75f
+                stringResource(item.label), item.icon, rpm?.let { scale.fraction(it) },
+                rpm?.let { String.format(Locale.getDefault(), "%,d", it) }, cells = 10, hotAbove = scale.redFrom
             )
         }
         BarItem.COOLANT -> {

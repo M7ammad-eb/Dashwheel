@@ -135,12 +135,14 @@ object RoadClips {
 
     private fun read(dir: File): ClipInfo? {
         val video = File(dir, "clip.mp4")
-        if (!video.exists()) return null
-        val notes = runCatching { JSONObject(File(dir, "clip.json").readText()) }.getOrNull()
+        val json = File(dir, "clip.json")
+        // Both, or the clip is still being built (RoadRecorder.build) or broken.
+        if (!video.exists() || !json.exists()) return null
+        val notes = runCatching { JSONObject(json.readText()) }.getOrNull()
         return ClipInfo(
             dir,
-            at = notes?.optLong("at") ?: video.lastModified(),
-            trigger = notes?.optString("trigger") ?: "button",
+            at = notes?.optLong("at", video.lastModified()) ?: video.lastModified(),
+            trigger = notes?.optString("trigger", "button") ?: "button",
             durationMs = notes?.optLong("durationMs") ?: 0L,
             bytes = video.length()
         )
@@ -160,9 +162,20 @@ class RoadRecorder(context: Context) {
     val videoCapture: VideoCapture<Recorder>
     val overlay: OverlayEffect
 
-    private var recording: Recording? = null
-    private var segmentStartedAt = 0L
-    private var segmentFile: File? = null
+    /** A segment being recorded: its file, CameraX's recording of it, and when the encoder reported starting. */
+    private class Run(val file: File) {
+        var recording: Recording? = null
+        var startedAt = 0L
+    }
+
+    private var run: Run? = null
+    /**
+     * The run [stop] or [pause] ended, until its Finalize comes: only then is
+     * its segment in the ring, and a clip still waiting for its after-segments
+     * closes with it rather than without it (see [onEvent]).
+     */
+    private var ending: Run? = null
+    private var closing = false
     @Volatile private var running = false
     private var startedOnce = false
     @Volatile private var tooHot = false
@@ -273,11 +286,9 @@ class RoadRecorder(context: Context) {
             // Started again meanwhile (the screen off and on at once): the start's own
             // work is queued behind this and must stay; only the old segment ends here.
             val last = gen == generation
-            if (last) handler.removeCallbacksAndMessages(null)
-            recording?.stop()
-            recording = null
-            // A clip still waiting for its after-segments keeps what it has.
-            ring.stopped().forEach { build(it) }
+            // Only the sampling stops: a segment's Finalize or a clip's release posted here must still run.
+            if (last) handler.removeCallbacks(sampleTick)
+            end()
             if (last) _state.value = State.OFF
         }
     }
@@ -285,10 +296,16 @@ class RoadRecorder(context: Context) {
     fun close() {
         stop()
         handler.post {
-            overlay.close()
-            thread.quitSafely()
-            worker.shutdown()
+            closing = true
+            if (ending == null) release()
         }
+    }
+
+    /** The recorder's thread and worker go, once the last segment's Finalize has been seen ([close]). */
+    private fun release() {
+        overlay.close()
+        thread.quitSafely()
+        worker.shutdown()
     }
 
     /** The phone's position, from Road watch's listener: for the notes, the picture, and the hard-brake trigger. */
@@ -335,7 +352,7 @@ class RoadRecorder(context: Context) {
     // ---- The segments ----
 
     private fun resume() {
-        if (!running || recording != null || tooHot || lowPower) return
+        if (!running || run != null || tooHot || lowPower) return
         if (freeBytes() < MIN_FREE_BYTES) {
             _state.value = State.PAUSED_FULL
             // Room is made by the phone's own clean-up or the driver: looked at again in a while,
@@ -343,48 +360,69 @@ class RoadRecorder(context: Context) {
             handler.postDelayed({ if (running) resume() }, RETRY_FULL_MS)
             return
         }
-        val file = File(ringDir, "seg-${SystemClock.elapsedRealtime()}.mp4")
-        segmentFile = file
-        val options = FileOutputOptions.Builder(file).setDurationLimitMillis(SEGMENT_MS).build()
-        recording = try {
-            videoCapture.output.prepareRecording(app, options).start(ContextCompat.getMainExecutor(app)) { event -> handler.post { onEvent(event) } }
+        val r = Run(File(ringDir, "seg-${SystemClock.elapsedRealtime()}.mp4"))
+        val options = FileOutputOptions.Builder(r.file).setDurationLimitMillis(SEGMENT_MS).build()
+        try {
+            // The events name their run: a Finalize that comes after the next segment started
+            // (a stop and a start at once, a pause and a resume) is told from the new segment's.
+            r.recording = videoCapture.output.prepareRecording(app, options).start(ContextCompat.getMainExecutor(app)) { event -> handler.post { onEvent(r, event) } }
+            run = r
         } catch (e: RuntimeException) {
             Log.w(TAG, "could not start a segment", e)
             _state.value = State.UNSUPPORTED
-            null
         }
     }
 
     private fun pause(why: State) {
-        recording?.stop()
-        recording = null
-        ring.stopped().forEach { build(it) }
+        end()
         if (_state.value != State.OFF) _state.value = why
     }
 
-    private fun onEvent(event: VideoRecordEvent) {
+    /**
+     * The segment being recorded ends. The clips still waiting for their
+     * after-segments close once its Finalize has put it in the ring, not
+     * before: closed now, they would lose the segment holding the moment.
+     * With nothing recording and nothing on its way, they close now.
+     */
+    private fun end() {
+        val r = run
+        run = null
+        if (r != null) {
+            r.recording?.stop()
+            ending = r
+        } else if (ending == null) {
+            ring.stopped().forEach { build(it) }
+        }
+    }
+
+    private fun onEvent(r: Run, event: VideoRecordEvent) {
         when (event) {
             is VideoRecordEvent.Start -> {
+                r.startedAt = SystemClock.elapsedRealtime()
                 // A segment paused (heat, battery) before its start was reported: not recording.
-                if (recording != null) {
-                    segmentStartedAt = SystemClock.elapsedRealtime()
-                    _state.value = State.RECORDING
-                }
+                if (r === run) _state.value = State.RECORDING
             }
             is VideoRecordEvent.Finalize -> {
-                recording = null
-                val file = segmentFile
-                val ok = file != null && (!event.hasError() || event.error == VideoRecordEvent.Finalize.ERROR_DURATION_LIMIT_REACHED) && file.length() > 0
+                val ok = (!event.hasError() || event.error == VideoRecordEvent.Finalize.ERROR_DURATION_LIMIT_REACHED) && r.file.length() > 0
                 if (ok) {
-                    val done = ring.segmentDone(Segment(file!!.name, segmentStartedAt, SystemClock.elapsedRealtime()))
+                    val done = ring.segmentDone(Segment(r.file.name, r.startedAt, SystemClock.elapsedRealtime()))
                     done.completed.forEach { build(it) }
                     done.delete.forEach { File(ringDir, it.name).delete() }
                 } else {
-                    file?.delete()
+                    r.file.delete()
                     if (event.hasError()) Log.w(TAG, "segment failed: ${event.error}")
                 }
-                // The next segment, straight away: the gap between two is what the encoder takes to start.
-                if (running && !tooHot) resume()
+                if (r === ending) {
+                    ending = null
+                    // Its segment is in the ring: a clip still waiting for its after-segments keeps what it has,
+                    // this segment included, unless the ring rolls on already (started again meanwhile).
+                    if (run == null) ring.stopped().forEach { build(it) }
+                    if (closing) release()
+                } else if (r === run) {
+                    run = null
+                    // The next segment, straight away: the gap between two is what the encoder takes to start.
+                    if (running && !tooHot) resume()
+                }
             }
             else -> Unit
         }
@@ -470,8 +508,11 @@ class RoadRecorder(context: Context) {
                 val dir = File(RoadClips.dir(app), SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date(wallAt)) + "-" + clip.trigger)
                 dir.mkdirs()
                 val video = File(dir, "clip.mp4")
-                val durationMs = concat(parts, video)
+                val part = File(dir, "clip.mp4.part")
+                val durationMs = concat(parts, part)
                 File(dir, "clip.json").writeText(notes(clip, wallAt, durationMs, rows, parts).toString(2))
+                // Listed, shared and fetched by its name: it gets the name only once it is whole, notes beside it.
+                check(part.renameTo(video)) { "could not rename ${part.name}" }
                 trim()
                 RoadClips.refresh(app)
             } catch (e: Exception) {

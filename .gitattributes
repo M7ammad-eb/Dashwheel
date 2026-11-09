@@ -1,5 +1,7 @@
 # Normalise line endings: LF in the repo, native on checkout.
 * text=auto eol=lf
+# Windows batch files: cmd.exe mis-reads labels in an LF-only file.
+*.bat text eol=crlf
 
 # Binaries
 *.png binary
@@ -9,3 +11,5 @@
 *.jar binary
 *.keystore binary
 *.jks binary
+*.tflite binary
+*.pbf binary

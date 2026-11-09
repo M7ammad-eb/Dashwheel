@@ -80,7 +80,9 @@ if [ "$IMAGE" -eq 1 ]; then
     > /etc/systemd/system/userconfig.service.d/dashwheel.conf
 else
   # Made now, while the card is still writable.
-  echo "pairing: $(/opt/dashwheel-display/bin/dashwheel-display --config "$CONFIG_DIR" --print-pairing)"
+  # Not inside an echo: a display program that cannot start must stop the install here.
+  pairing=$(/opt/dashwheel-display/bin/dashwheel-display --config "$CONFIG_DIR" --print-pairing)
+  echo "pairing: $pairing"
 fi
 
 # Where the map the display draws itself keeps its tiles (in memory on a read-only card: see README.md).
@@ -147,6 +149,8 @@ if [ ! -f "$WPA" ]; then
       printf 'network={\n\tssid="%s"\n' "$ssid"
       if [ -z "$psk" ]; then printf '\tkey_mgmt=NONE\n'
       elif printf '%s' "$psk" | grep -qE '^[0-9a-fA-F]{64}$'; then printf '\tpsk=%s\n' "$psk"
+      # A quote or a backslash inside psk="…" breaks the whole file (add-wifi.sh guards the same): such a network is left out.
+      elif printf '%s' "$psk" | grep -q '["\\]'; then echo "skipping Wi-Fi network $ssid: its password has a quote or a backslash" >&2; continue
       else printf '\tpsk="%s"\n' "$psk"; fi
       printf '}\n'
     done

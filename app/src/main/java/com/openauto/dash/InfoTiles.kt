@@ -794,8 +794,8 @@ internal fun QuickDialCard(modifier: Modifier = Modifier) {
     val source = rememberQuickDialSource()
     val perm = source.access
     val favourites = source.favourites
-    val zone = rememberZone()
-    val timeFmt = remember(zone) { SimpleDateFormat("HH:mm", Locale.getDefault()).inZone(zone) }
+    // The driver's clock (12 or 24 hours), as every other tile shows a time.
+    val timeFmt = rememberTimeFormat()
     val pending = rememberPendingAction()
     fun call(name: String, number: String) = pending.arm(context.getString(R.string.phone_calling, name)) { dialNumber(context, number) }
 

@@ -181,7 +181,12 @@ private class LaneFile(val top: Float, val height: Float, val packed: Map<Int, B
         inflater.setInput(bytes)
         val raw = ByteArray(2 * W * H)
         var n = 0
-        while (n < raw.size && !inflater.finished()) n += inflater.inflate(raw, n, raw.size - n)
+        while (n < raw.size && !inflater.finished()) {
+            val got = inflater.inflate(raw, n, raw.size - n)
+            // A truncated entry (a recording cut short): inflate yields nothing and asks for more, forever.
+            if (got == 0 && (inflater.needsInput() || inflater.needsDictionary())) break
+            n += got
+        }
         inflater.end()
         val chances = FloatBuffer.allocate(raw.size)
         for (b in raw) chances.put((b.toInt() and 0xFF) / 255f)

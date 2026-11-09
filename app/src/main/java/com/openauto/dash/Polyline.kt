@@ -19,7 +19,8 @@ object Polyline {
             while (true) {
                 if (index >= encoded.length) return null
                 val b = encoded[index++].code - 63
-                if (b < 0) return null
+                // A corrupt string never ends its number: past 64 bits the shift wraps round and gives garbage points.
+                if (b < 0 || shift >= 64) return null
                 result = result or ((b and 0x1f).toLong() shl shift)
                 shift += 5
                 if (b < 0x20) break

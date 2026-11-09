@@ -36,12 +36,14 @@ class DisplayServer(
     private val hello: DisplayHello,
     /** The monitor's brightness buttons, when wired. */
     private val buttons: BrightnessButtons? = null,
+    /** Time that only moves forward: LocalClock steps the wall clock after every Hello. */
+    private val uptimeMs: () -> Long = { System.nanoTime() / 1_000_000 },
     private val screenFor: (requestKeyFrame: () -> Unit) -> Screen = { request -> Screen(config, ScreenMode(hello.width, hello.height), pairing, request) }
 ) {
     @Volatile private var current: LinkSession? = null
-    @Volatile private var lastKeyRequest = 0L
-    val screen: Screen = screenFor(::requestKeyFrame)
+    @Volatile private var lastKeyRequest = Long.MIN_VALUE / 2
     private val timer = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "display-stats").apply { isDaemon = true } }
+    val screen: Screen = screenFor(::requestKeyFrame)
 
     fun run(server: ServerSocket = ServerSocket(config.port)) {
         Beacon(pairing.offer.id) { current != null }.start()
@@ -135,11 +137,13 @@ class DisplayServer(
     }
 
     private fun requestKeyFrame() {
-        val now = System.currentTimeMillis()
+        val now = uptimeMs()
         // The decoder may ask on every dropped frame; one request per half second is plenty.
         if (now - lastKeyRequest < 500) return
         lastKeyRequest = now
-        current?.sendOrClose(DisplayCommand(DisplayCommand.Action.KEYFRAME_PLEASE))
+        // Asked from under the screen's and the decoder's locks: the socket write goes on the
+        // stats thread, so a head unit that stops reading can't freeze the drawing behind it.
+        timer.execute { current?.sendOrClose(DisplayCommand(DisplayCommand.Action.KEYFRAME_PLEASE)) }
     }
 
     /** Every few seconds, in every mode: the video's counts (zero without video) and the board's health; a heartbeat too. */

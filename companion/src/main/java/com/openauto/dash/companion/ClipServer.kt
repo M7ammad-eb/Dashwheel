@@ -186,7 +186,8 @@ object ClipServer {
             val face = faces.firstOrNull { it.name == path.removePrefix("/signs/") } ?: return Route.Refused("404 Not Found")
             return Route.Send(face, 0)
         }
-        val clips = dir.listFiles { f -> File(f, "clip.mp4").isFile }?.sortedBy { it.name } ?: emptyList()
+        // Both files, or the clip is still being built (RoadRecorder.build) or broken.
+        val clips = dir.listFiles { f -> File(f, "clip.mp4").isFile && File(f, "clip.json").isFile }?.sortedBy { it.name } ?: emptyList()
         if (path == "/clips") return Route.Listing(clips)
         // Only a listed clip's own two files: the path picks among them, it never names a file itself.
         val bits = path.removePrefix("/clips/").split('/')

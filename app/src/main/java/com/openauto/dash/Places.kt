@@ -145,7 +145,10 @@ internal object PlaceSearch {
             val arr = JsonParser.parseString(resp.body?.string() ?: return null).asJsonArray
             if (arr.size() == 0) return null
             val o = arr[0].asJsonObject
-            return Place(query, o.get("lat").asString.toDouble(), o.get("lon").asString.toDouble())
+            // An answer without a position is "not found", not "offline" (a throw here reads as the latter).
+            val lat = o.get("lat")?.asString?.toDoubleOrNull() ?: return null
+            val lon = o.get("lon")?.asString?.toDoubleOrNull() ?: return null
+            return Place(query, lat, lon)
         }
     }
 

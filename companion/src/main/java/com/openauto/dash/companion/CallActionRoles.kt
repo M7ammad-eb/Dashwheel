@@ -40,6 +40,9 @@ internal object CallActionRoles {
         "rozłącz", "zakończ"
     )
 
+    /** What separates the words of a title: anything but letters, in any script. */
+    private val NOT_LETTERS = Regex("[^\\p{L}]+")
+
     /** The roles of the actions titled [titles], in order. */
     fun of(titles: List<String>): Roles {
         val named = titles.map { it.trim().lowercase() }
@@ -62,7 +65,7 @@ internal object CallActionRoles {
 
     private fun matches(title: String, words: Set<String>): Boolean {
         if (title.isEmpty()) return false
-        val parts = title.split(Regex("[^\\p{L}]+")).filter { it.isNotEmpty() }
+        val parts = title.split(NOT_LETTERS).filter { it.isNotEmpty() }
         return title in words || parts.any { it in words } || words.any { ' ' in it && it in title }
     }
 }

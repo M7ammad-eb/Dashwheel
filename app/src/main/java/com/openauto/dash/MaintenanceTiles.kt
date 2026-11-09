@@ -161,8 +161,9 @@ internal fun ServiceCard(modifier: Modifier = Modifier) {
     val state by Maintenance.state.collectAsState()
     var editing by remember { mutableStateOf(false) }
     val reveal = rememberEditReveal()
-    val now = System.currentTimeMillis()
-    val dues = remember(state) { state.statuses(now) }
+    // Once an hour: a unit left on overnight otherwise keeps yesterday's "due in N days".
+    val now = rememberWallClock(3_600_000L).longValue
+    val dues = remember(state, now) { state.statuses(now) }
     val first = dues.firstOrNull { it.stage != UpkeepStage.UNKNOWN }
     val lock = LocalDriveLock.current
     Card(modifier = modifier) { Box(Modifier.fillMaxSize()) {

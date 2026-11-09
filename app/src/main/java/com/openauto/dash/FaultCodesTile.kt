@@ -727,9 +727,11 @@ private fun FaultDetailSheet(
 ) {
     val context = LocalContext.current
     val ask by AskMechanic.state.collectAsState()
-    val askQuestion = rememberAskQuestion { AskMechanic.listen(context, code, codes, diagnosis) }
+    // Only a question asked from this sheet: one asked from the tile's header goes on when the sheet closes.
+    var askedHere by remember { mutableStateOf(false) }
+    val askQuestion = rememberAskQuestion { askedHere = true; AskMechanic.listen(context, code, codes, diagnosis) }
     // Leaving the sheet stops listening, and the answer shown goes with it.
-    DisposableEffect(Unit) { onDispose { AskMechanic.cancel() } }
+    DisposableEffect(Unit) { onDispose { if (askedHere) AskMechanic.cancel() } }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(
             shape = DashShape.Large,

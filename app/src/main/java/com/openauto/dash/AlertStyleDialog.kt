@@ -486,7 +486,9 @@ private fun AlertStyleDialog(kind: AlertKind, onDismiss: () -> Unit) {
                     SettingsToggle(
                         Icons.Filled.AutoAwesome, stringResource(R.string.ai_live_own), stringResource(R.string.ai_live_own_detail), ai.ownLive
                     ) {
-                        ai = ai.copy(ownLive = it)
+                        // From the settings as saved now, not the copy loaded when the picker opened:
+                        // a key typed meanwhile in the AI sheet would be written over.
+                        ai = AiSettings.load(context).copy(ownLive = it)
                         AiSettings.save(context, ai)
                     }
                 }

@@ -119,7 +119,7 @@ private fun Orb(f: WidgetFace, look: FaceLook, d: Float, onClick: (() -> Unit)? 
             val tl = Offset(stroke / 2f, stroke / 2f)
             val sz = Size(size.width - stroke, size.height - stroke)
             drawArc(look.track, 0f, 360f, false, tl, sz, style = Stroke(stroke))
-            val fr = (f.fraction ?: 0f).coerceIn(0f, 1f)
+            val fr = fraction01(f.fraction)
             if (fr > 0f) drawArc(ringBrush, -90f, 360f * fr, false, tl, sz, style = Stroke(stroke, cap = StrokeCap.Round))
             // A glint that runs round the rim while something plays.
             if (f.active) drawArc(Color.White.copy(alpha = 0.55f), spin - 90f, 24f, false, tl, sz, style = Stroke(stroke * 0.55f, cap = StrokeCap.Round))
@@ -337,7 +337,7 @@ internal fun DotsLayout(f: WidgetFace, look: FaceLook, m: FaceMetrics) {
             Canvas(modifier = Modifier.fillMaxWidth().height(m.dp(2.6f).coerceAtLeast(6.dp))) {
                 val step = size.height * 1.6f
                 val n = max(1, (size.width / step).toInt())
-                val on = (fraction.coerceIn(0f, 1f) * n).toInt()
+                val on = (fraction01(fraction) * n).toInt()
                 for (i in 0 until n) {
                     val c = Offset(i * step + size.height / 2f, size.height / 2f)
                     when {
@@ -562,7 +562,8 @@ internal fun IslandLayout(f: WidgetFace, look: FaceLook, m: FaceMetrics) {
                     modifier = Modifier.fillMaxWidth(0.84f).height(3.dp).clip(CircleShape).background(look.track)
                 ) {
                     Box(
-                        Modifier.fillMaxHeight().fillMaxWidth(fraction.coerceIn(0f, 1f)).clip(CircleShape)
+                        // fraction01: coerceIn lets NaN through, and fillMaxWidth(NaN) throws on the dashboard.
+                        Modifier.fillMaxHeight().fillMaxWidth(fraction01(fraction)).clip(CircleShape)
                             .background(if (f.alert) Brush.horizontalGradient(listOf(look.warn, look.warn)) else Brush.horizontalGradient(listOf(look.accent, look.accent2)))
                     )
                 }

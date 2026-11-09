@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -223,7 +224,10 @@ private suspend fun recognize(context: Context, uri: Uri): CarRegistration {
                         RegistrationReader.Line(line.text, box.left, box.top, box.right, box.bottom)
                     })
                 }
-                .addOnFailureListener { cont.resumeWithException(RecognizerMissing(it)) }
+                .addOnFailureListener {
+                    // Only the recognizer's absence is told apart; any other failure reads as nothing found.
+                    cont.resumeWithException(if (it is MlKitException && it.errorCode == MlKitException.UNAVAILABLE) RecognizerMissing(it) else it)
+                }
         }
         return withContext(Dispatchers.Default) { RegistrationReader.read(lines) }
     } finally {

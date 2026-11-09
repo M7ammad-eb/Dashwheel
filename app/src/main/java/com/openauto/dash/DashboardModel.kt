@@ -797,6 +797,9 @@ object DashboardStore {
     internal fun parsePages(raw: String, variant: String = ""): List<List<DashboardItem>>? =
         parseItems(raw, retained(variant))
 
+    /** [parsePages] for a text that is not this unit's layout (a shared code): nothing is stashed for a later save. */
+    internal fun parsePagesPlain(raw: String): List<List<DashboardItem>>? = parseItems(raw, retained = null)
+
     /**
      * The tiles saved for [variant], read without changing anything: not the
      * tiles kept for its next save, not the layout's backup, not the kinds the
@@ -844,8 +847,12 @@ object DashboardStore {
     }.onFailure { Log.w(TAG, "Layout parse failed", it) }.getOrNull()
 
     /** The versioned JSON document [save] writes, including any [retained] tiles. */
-    internal fun serializePages(pages: List<List<DashboardItem>>, variant: String = ""): String {
-        val retained = retained(variant)
+    internal fun serializePages(pages: List<List<DashboardItem>>, variant: String = ""): String = serialize(pages, retained(variant))
+
+    /** [serializePages] with nothing retained: a shared code carries what the driver sees, not strangers from a code read earlier. */
+    internal fun serializePagesPlain(pages: List<List<DashboardItem>>): String = serialize(pages, emptyMap())
+
+    private fun serialize(pages: List<List<DashboardItem>>, retained: Map<Int, List<JSONObject>>): String {
         val json = JSONArray()
         pages.take(PAGE_COUNT).forEachIndexed { p, page ->
             val arr = JSONArray()

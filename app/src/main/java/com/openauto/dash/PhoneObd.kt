@@ -52,7 +52,12 @@ internal object PhoneObd {
         opening = wait
         val relay = RelayInput()
         input = relay
-        if (!PhoneLink.send(ObdOpen)) return Opened.Failed("no phone link")
+        if (!PhoneLink.send(ObdOpen)) {
+            // Nothing asked: nothing left armed, or the next open() would tell the phone to close a relay it never opened.
+            opening = null
+            input = null
+            return Opened.Failed("no phone link")
+        }
         val state = withTimeoutOrNull(OPEN_TIMEOUT_MS) { wait.await() }
         opening = null
         if (state == null) {

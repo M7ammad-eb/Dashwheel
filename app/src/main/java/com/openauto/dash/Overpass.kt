@@ -56,6 +56,9 @@ internal object Overpass {
      * back its JSON; throws when none does. Blocking: from an IO thread.
      * A [patient] query is given minutes, not seconds, to be answered.
      */
+    /** A coordinate as Overpass QL wants it: plain decimals (Double.toString gives "1.0E-4" near zero, which it refuses). */
+    fun coord(deg: Double): String = String.format(java.util.Locale.US, "%.6f", deg)
+
     fun query(query: String, patient: Boolean = false): JSONObject {
         var last: Throwable? = null
         val servers = servers(MapServers.current.value.overpass)

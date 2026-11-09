@@ -40,7 +40,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -85,7 +87,8 @@ internal fun RoadWatchCard(connected: Boolean) {
     val fetching by ClipServer.on.collectAsState()
     LaunchedEffect(Unit) {
         RoadModel.check(context)
-        RoadClips.load(context)
+        // Reads every clip's notes: not on the main thread.
+        withContext(Dispatchers.IO) { RoadClips.load(context) }
         RoadModel.upgrade(context)
         ClipServer.load(context)
     }
@@ -178,6 +181,7 @@ internal fun ExperimentalMark() {
 @Composable
 internal fun ClipsCard() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val clips by RoadClips.clips.collectAsState()
     val recording by RoadClips.enabled.collectAsState()
     if (clips.isEmpty() && !recording) return
@@ -203,7 +207,7 @@ internal fun ClipsCard() {
                     IconButton(onClick = { share(context, listOf(clip.video, clip.notes)) }) {
                         Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.rec_share), tint = CompanionColors.Blue)
                     }
-                    TextButton(onClick = { RoadClips.delete(context, clip) }) { Text(stringResource(R.string.rec_delete), color = CompanionColors.Red) }
+                    TextButton(onClick = { scope.launch(Dispatchers.IO) { RoadClips.delete(context, clip) } }) { Text(stringResource(R.string.rec_delete), color = CompanionColors.Red) }
                 }
             }
         }

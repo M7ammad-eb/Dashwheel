@@ -77,20 +77,22 @@ object PrivApp {
               echo '$PRIVAPP_XML' > $mod/system/etc/permissions/$PRIVAPP_XML_NAME || exit 23
               echo OKINSTALL:magisk
             else
+              # Every way out puts /system back read-only: two failures left it writable until a reboot.
+              bye() { sync; mount -o remount,ro /system 2>/dev/null; mount -o remount,ro / 2>/dev/null; exit "$1"; }
               mount -o remount,rw / 2>/dev/null
               mount -o remount,rw /system 2>/dev/null
-              mkdir -p /system/priv-app/OpenAutoDash || exit 31
+              mkdir -p /system/priv-app/OpenAutoDash || bye 31
               # A full /system stops the copy half-way: no cut-off APK is left where the
               # system would find it at the next start, nor /system writable.
               cp '$apk' /system/priv-app/OpenAutoDash/OpenAutoDash.apk || {
-                rm -rf /system/priv-app/OpenAutoDash; sync; mount -o remount,ro /system 2>/dev/null; exit 32
+                rm -rf /system/priv-app/OpenAutoDash; bye 32
               }
               chmod 644 /system/priv-app/OpenAutoDash/OpenAutoDash.apk
               chcon u:object_r:system_file:s0 /system/priv-app/OpenAutoDash/OpenAutoDash.apk 2>/dev/null
               mkdir -p /system/etc/permissions
               # Fatal only where the ROM enforces the whitelist (see AdbInstaller).
               echo '$PRIVAPP_XML' > /system/etc/permissions/$PRIVAPP_XML_NAME || {
-                if [ "$(getprop ro.control_privapp_permissions)" = enforce ]; then rm -rf /system/priv-app/OpenAutoDash; exit 33; fi
+                if [ "$(getprop ro.control_privapp_permissions)" = enforce ]; then rm -rf /system/priv-app/OpenAutoDash; bye 33; fi
               }
               chmod 644 /system/etc/permissions/$PRIVAPP_XML_NAME
               chcon u:object_r:system_file:s0 /system/etc/permissions/$PRIVAPP_XML_NAME 2>/dev/null

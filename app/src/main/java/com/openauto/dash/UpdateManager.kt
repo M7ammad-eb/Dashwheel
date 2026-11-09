@@ -253,12 +253,14 @@ class UpdateManager(private val context: Context) {
     /** Sends the user to enable "install unknown apps" for this app. */
     fun openInstallPermissionSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startActivity(
+            // A ROM stripped of that settings screen must not take the launcher down with the Update tap.
+            val shown = context.launchSafely(
                 Intent(
                     Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                     Uri.parse("package:${context.packageName}")
                 ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
+            if (!shown) _status.value = UpdateStatus.Error(R.string.sys_update_install_failed)
         }
     }
 
@@ -366,6 +368,7 @@ class UpdateManager(private val context: Context) {
             if (shared) request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, publicName)
             else request.setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, APK_NAME)
             downloadId = downloadManager.enqueue(request)
+            activeDownloads += downloadId
         } catch (e: RuntimeException) {
             Log.w(TAG, "the download could not start", e)
             _status.value = UpdateStatus.Error(R.string.sys_update_download_failed)
@@ -379,6 +382,7 @@ class UpdateManager(private val context: Context) {
                 withTimeoutOrNull(DOWNLOAD_TIMEOUT_MS) { awaitDownload(downloadManager, info, downloadId) } ?: false
             }
         } finally {
+            activeDownloads -= downloadId
             if (!success) {
                 // Failed, stuck or abandoned: nothing left queued in the system's
                 // downloader, and never a percentage left standing still.
@@ -405,10 +409,12 @@ class UpdateManager(private val context: Context) {
         runCatching {
             val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             // A query without a filter lists this app's own downloads only.
+            // Not one another instance is downloading now: the "previous version" row and the
+            // dashboard's updater each have their own, and one took the other's download away.
             val ids = downloadManager.query(DownloadManager.Query())?.use { cursor ->
                 val column = cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_ID)
                 buildList { while (cursor.moveToNext()) add(cursor.getLong(column)) }
-            }.orEmpty()
+            }.orEmpty().filter { it !in activeDownloads }
             if (ids.isNotEmpty()) downloadManager.remove(*ids.toLongArray())
         }
     }
@@ -484,6 +490,8 @@ class UpdateManager(private val context: Context) {
 
     companion object {
         private const val TAG = "UpdateManager"
+        /** Downloads under way in this process, by any instance: [forgetDownloads] leaves them alone. */
+        private val activeDownloads = java.util.concurrent.CopyOnWriteArraySet<Long>()
         private const val PREFS = "updates"
         /** Android's confirmation and the install itself, before an update still not installed is offered again. */
         private const val INSTALL_WAIT_MS = 45_000L

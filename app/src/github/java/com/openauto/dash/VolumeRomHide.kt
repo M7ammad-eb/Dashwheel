@@ -43,7 +43,6 @@ internal object VolumeRomHide {
             val script = if (hide) {
                 val apk = File(context.cacheDir, ASSET)
                 context.assets.open(ASSET).use { input -> apk.outputStream().use { input.copyTo(it) } }
-                apk.setReadable(true, false)
                 """
                 [ -d /data/adb/modules ] || { echo NO_MAGISK; exit 3; }
                 mkdir -p ${MODULE_APK.substringBeforeLast('/')} || exit 4

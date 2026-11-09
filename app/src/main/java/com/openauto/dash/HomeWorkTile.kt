@@ -62,7 +62,10 @@ internal fun HomeWorkCard(modifier: Modifier = Modifier) {
     val hasFix by LocationFeed.hasFix.collectAsState()
     var homeMin by remember { mutableStateOf<Int?>(null) }
     var workMin by remember { mutableStateOf<Int?>(null) }
-    LaunchedEffect(places.home, places.work, hasFix) {
+    // Not on a page off screen: two router requests every five minutes per composed copy otherwise.
+    val active = LocalPageActive.current
+    LaunchedEffect(places.home, places.work, hasFix, active) {
+        if (!active) return@LaunchedEffect
         while (true) {
             val loc = LocationFeed.location.value
             if (loc != null) {

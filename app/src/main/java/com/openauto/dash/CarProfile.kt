@@ -244,6 +244,9 @@ data class CarProfile(
 
         fun fromJson(o: JSONObject): CarProfile {
             fun int(k: String) = if (o.isNull(k)) null else o.optInt(k)
+            // A zero typed or saved for a figure that cannot be zero means "unknown": the
+            // skins divide by the red line and count the gears (a 0 red line crashed Motorsport).
+            fun posInt(k: String) = int(k)?.takeIf { it > 0 }
             fun dbl(k: String) = if (o.isNull(k)) null else o.optDouble(k).takeIf { !it.isNaN() }
             fun <E : Enum<E>> enum(k: String, values: Array<E>, default: E) =
                 values.firstOrNull { it.name == o.optString(k) } ?: default
@@ -252,9 +255,9 @@ data class CarProfile(
                 make = o.optString("make"), model = o.optString("model"), year = int("year"),
                 engine = o.optString("engine"),
                 fuel = enum("fuel", FuelType.entries.toTypedArray(), FuelType.DIESEL),
-                powerHp = int("power_hp"), torqueNm = int("torque_nm"), torqueRpm = int("torque_rpm"), redlineRpm = int("redline_rpm"),
+                powerHp = int("power_hp"), torqueNm = int("torque_nm"), torqueRpm = int("torque_rpm"), redlineRpm = posInt("redline_rpm"),
                 gearbox = enum("gearbox", GearboxType.entries.toTypedArray(), GearboxType.MANUAL),
-                gearboxName = o.optString("gearbox_name"), gears = int("gears"),
+                gearboxName = o.optString("gearbox_name"), gears = posInt("gears"),
                 tankL = dbl("tank_l"), consumptionL100 = dbl("consumption_l100"),
                 particleFilter = o.optBoolean("particle_filter"), filterAdditive = o.optBoolean("filter_additive"),
                 driverOnRight = o.optBoolean("driver_on_right"),

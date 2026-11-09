@@ -119,7 +119,7 @@ internal fun MsDriverDisplay(env: SkinTileEnv) {
     val obd = env.obdConnection == ObdConnectionState.CONNECTED
     val canConnect = speed == null && idle && !env.editing
     val profile by CarProfileStore.profile.collectAsState()
-    val redline = profile.redlineRpm ?: 4_500
+    val redline = profile.redlineRpm?.takeIf { it > 0 } ?: DEFAULT_REDLINE_RPM
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
@@ -274,7 +274,8 @@ private fun SpeedBlock(speed: Int?, obd: Boolean, gear: State<GearReading>, redl
                         MsText(rpm?.toString() ?: "----", msHero(fixedSp(capsSp * 1.45f), if (rpm != null) DashColors.TextPrimary else DashColors.Muted))
                     }
                     Spacer(Modifier.height(6.dp))
-                    val redFrom = ((redline * 0.78f) / redline * REV_BLOCKS).roundToInt().coerceIn(1, REV_BLOCKS)
+                    // The last blocks past 78 % of the red line are red (the red line itself ends the bar).
+                    val redFrom = (0.78f * REV_BLOCKS).roundToInt().coerceIn(1, REV_BLOCKS)
                     val lit = remember(gear, redline) {
                         { gear.value.rpm?.let { (it.toFloat() / redline * REV_BLOCKS).toInt().coerceIn(0, REV_BLOCKS) } ?: 0 }
                     }

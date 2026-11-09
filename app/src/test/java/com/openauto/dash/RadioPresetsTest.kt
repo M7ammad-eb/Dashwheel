@@ -16,4 +16,12 @@ class RadioPresetsTest {
         listOf(522, 603, 999, 1404, 1620).forEach { assertFalse(isFm(it)) }
         assertEquals("88.8", RadioStation(8880, "").mhz)
     }
+
+    @Test
+    fun frequencyKeepsItsHundredths() {
+        // 101.25 (a US odd-tenth neighbour) and 69.26 (OIRT's 30 kHz grid) once tuned as "101.2" and "69.3".
+        assertEquals("101.25", RadioStation(10125, "").mhz)
+        assertEquals("69.26", RadioStation(6926, "").mhz)
+        assertEquals("104.0", RadioStation(10400, "").mhz)
+    }
 }

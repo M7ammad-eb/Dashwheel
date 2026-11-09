@@ -57,6 +57,8 @@ import java.util.concurrent.TimeUnit
  */
 internal object DashAssistant {
     private const val TAG = "DashAssistant"
+    // Compiled once: the transcript is tidied for every fragment heard, several a second.
+    private val SPACES = Regex("\\s+")
     private const val URL =
         "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key="
 
@@ -361,7 +363,7 @@ internal object DashAssistant {
         val all = _lines.value
         val last = all.lastOrNull()
         _lines.value = if (last != null && last.driver == driver && lineOpen) {
-            all.dropLast(1) + last.copy(text = (last.text + text).replace(Regex("\\s+"), " "))
+            all.dropLast(1) + last.copy(text = (last.text + text).replace(SPACES, " "))
         } else {
             (all + Line(driver, text.trim())).takeLast(8)
         }

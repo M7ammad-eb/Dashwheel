@@ -111,6 +111,8 @@ object WeatherRepo {
     private var lastLat = Double.NaN
     private var lastLng = Double.NaN
     private var lastFetch = 0L
+    // Failures in a row: offline, a request a minute for the whole drive is not tried; the wait doubles (Backoff).
+    private var failures = 0
 
     // The real answer, kept while the demo shows its own and put back when it ends.
     @Volatile private var realWeather: Weather? = null
@@ -118,6 +120,7 @@ object WeatherRepo {
 
     /** One refresh interval: an answer older than this is shown with its time. */
     internal const val REFRESH_MS = 15 * 60_000L
+    private const val RETRY_MS = 60_000L
     private const val MOVE_DEG = 0.05   // ~5 km: refresh sooner when the car has moved on
 
     /** [DemoMode]'s weather: the picture of it; its temperature goes on the bus through the demo source. */
@@ -187,12 +190,15 @@ object WeatherRepo {
                     )
                 }
             }.onSuccess {
+                failures = 0
                 publish(it, null)
             }.onFailure {
                 // The reason only; the UI adds the localized "Weather unavailable".
                 publish(realWeather, reason(it))
-                // Allow a retry before the normal interval.
-                lastFetch = now - REFRESH_MS + 60_000L
+                // Tried again before the normal interval, but not once a minute for the
+                // whole drive with the hotspot gone: 1, 2, 4… minutes, as the fuel prices do.
+                failures++
+                lastFetch = now - REFRESH_MS + Backoff.doubling(RETRY_MS, REFRESH_MS, failures)
             }
         }
     }
