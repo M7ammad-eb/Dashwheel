@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings, Driving, Speed limits on the unit: the roads kept for when no map data server answers (SpeedLimitStore.kt). -->
+    <string name="limits_kept_title">Speed limits on the unit</string>
+    <string name="limits_kept_row_detail">Kept for when the map data servers are down</string>
+    <string name="limits_kept_explanation">The speed limits of the roads you drive are kept on the unit, and so is an area round the car when you ask for it here. When no map data server answers, the tile and the spoken alerts go on from these. An area is read again every month.</string>
+    <string name="limits_kept_radius">Area round the car</string>
+    <string name="limits_kept_download">Download</string>
+    <string name="limits_kept_downloading">Downloading %1$d%%</string>
+    <string name="limits_kept_failed">No map data server answered. Try again later.</string>
+    <string name="limits_kept_no_position">The car\'s position is not known yet.</string>
+    <string name="limits_kept_section">Kept on the unit</string>
+    <string name="limits_kept_no_area">No area yet</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d road</item>
+        <item quantity="other">%d roads</item>
+    </plurals>
+</resources>

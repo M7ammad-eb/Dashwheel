@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Ограничения скорости на магнитоле</string>
+    <string name="limits_kept_row_detail">Хранятся на случай, когда серверы картографических данных не отвечают</string>
+    <string name="limits_kept_explanation">Ограничения дорог, по которым вы ездите, сохраняются на магнитоле, а также область вокруг машины, если вы запросите её здесь. Когда ни один сервер картографических данных не отвечает, плитка и голосовые предупреждения продолжают работать по ним. Область перечитывается каждый месяц.</string>
+    <string name="limits_kept_radius">Область вокруг машины</string>
+    <string name="limits_kept_download">Скачать</string>
+    <string name="limits_kept_downloading">Скачивание %1$d%%</string>
+    <string name="limits_kept_failed">Ни один сервер картографических данных не ответил. Попробуйте позже.</string>
+    <string name="limits_kept_no_position">Положение машины пока неизвестно.</string>
+    <string name="limits_kept_section">Хранятся на магнитоле</string>
+    <string name="limits_kept_no_area">Пока ни одной области</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d дорога</item>
+        <item quantity="few">%d дороги</item>
+        <item quantity="many">%d дорог</item>
+        <item quantity="other">%d дороги</item>
+    </plurals>
+</resources>

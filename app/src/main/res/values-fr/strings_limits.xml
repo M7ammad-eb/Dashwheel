@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Limites de vitesse sur l\'autoradio</string>
+    <string name="limits_kept_row_detail">Gardées pour quand les serveurs de données cartographiques ne répondent pas</string>
+    <string name="limits_kept_explanation">Les limites des routes que vous empruntez sont gardées sur l\'autoradio, et une zone autour de la voiture si vous la demandez ici. Quand aucun serveur de données cartographiques ne répond, la tuile et les alertes vocales continuent avec elles. Une zone est relue chaque mois.</string>
+    <string name="limits_kept_radius">Zone autour de la voiture</string>
+    <string name="limits_kept_download">Télécharger</string>
+    <string name="limits_kept_downloading">Téléchargement %1$d %%</string>
+    <string name="limits_kept_failed">Aucun serveur de données cartographiques n\'a répondu. Réessayez plus tard.</string>
+    <string name="limits_kept_no_position">La position de la voiture n\'est pas encore connue.</string>
+    <string name="limits_kept_section">Gardées sur l\'autoradio</string>
+    <string name="limits_kept_no_area">Aucune zone pour l\'instant</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d route</item>
+        <item quantity="many">%d routes</item>
+        <item quantity="other">%d routes</item>
+    </plurals>
+</resources>

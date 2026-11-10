@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Snelheidslimieten op het toestel</string>
+    <string name="limits_kept_row_detail">Bewaard voor wanneer de kaartgegevensservers niet antwoorden</string>
+    <string name="limits_kept_explanation">De limieten van de wegen die je rijdt worden op het toestel bewaard, en ook een gebied rond de auto als je daar hier om vraagt. Antwoordt geen enkele kaartgegevensserver, dan gaan de tegel en de gesproken waarschuwingen daarmee verder. Een gebied wordt elke maand opnieuw gelezen.</string>
+    <string name="limits_kept_radius">Gebied rond de auto</string>
+    <string name="limits_kept_download">Downloaden</string>
+    <string name="limits_kept_downloading">Downloaden %1$d%%</string>
+    <string name="limits_kept_failed">Geen enkele kaartgegevensserver antwoordde. Probeer het later opnieuw.</string>
+    <string name="limits_kept_no_position">De positie van de auto is nog niet bekend.</string>
+    <string name="limits_kept_section">Bewaard op het toestel</string>
+    <string name="limits_kept_no_area">Nog geen gebied</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d weg</item>
+        <item quantity="other">%d wegen</item>
+    </plurals>
+</resources>

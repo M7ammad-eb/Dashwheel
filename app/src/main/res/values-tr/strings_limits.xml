@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Cihazdaki hız limitleri</string>
+    <string name="limits_kept_row_detail">Harita veri sunucuları çöktüğünde kullanılmak üzere saklanır</string>
+    <string name="limits_kept_explanation">Sürdüğünüz yolların hız limitleri cihazda saklanır; burada istediğinizde aracın çevresindeki bir bölge de. Hiçbir harita veri sunucusu yanıt vermediğinde kutucuk ve sesli uyarılar bunlarla devam eder. Bir bölge her ay yeniden okunur.</string>
+    <string name="limits_kept_radius">Aracın çevresindeki bölge</string>
+    <string name="limits_kept_download">İndir</string>
+    <string name="limits_kept_downloading">İndiriliyor %%%1$d</string>
+    <string name="limits_kept_failed">Hiçbir harita veri sunucusu yanıt vermedi. Daha sonra tekrar deneyin.</string>
+    <string name="limits_kept_no_position">Aracın konumu henüz bilinmiyor.</string>
+    <string name="limits_kept_section">Cihazda saklananlar</string>
+    <string name="limits_kept_no_area">Henüz bölge yok</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d yol</item>
+        <item quantity="other">%d yol</item>
+    </plurals>
+</resources>

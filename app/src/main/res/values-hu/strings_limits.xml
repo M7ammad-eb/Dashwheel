@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Sebességhatárok a fejegységen</string>
+    <string name="limits_kept_row_detail">Megtartva arra az időre, amikor a térképadat-szerverek nem válaszolnak</string>
+    <string name="limits_kept_explanation">Az Ön által járt utak sebességhatárai a fejegységen maradnak, és egy terület is az autó körül, ha itt kéri. Ha egyetlen térképadat-szerver sem válaszol, a csempe és a hangos figyelmeztetések ezekből dolgoznak tovább. Egy terület havonta újra beolvasásra kerül.</string>
+    <string name="limits_kept_radius">Terület az autó körül</string>
+    <string name="limits_kept_download">Letöltés</string>
+    <string name="limits_kept_downloading">Letöltés %1$d%%</string>
+    <string name="limits_kept_failed">Egyetlen térképadat-szerver sem válaszolt. Próbálja újra később.</string>
+    <string name="limits_kept_no_position">Az autó helyzete még nem ismert.</string>
+    <string name="limits_kept_section">A fejegységen tárolva</string>
+    <string name="limits_kept_no_area">Még nincs terület</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d út</item>
+        <item quantity="other">%d út</item>
+    </plurals>
+</resources>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Greičio ribos magnetoloje</string>
+    <string name="limits_kept_row_detail">Saugomos tam laikui, kai žemėlapio duomenų serveriai neatsako</string>
+    <string name="limits_kept_explanation">Kelių, kuriais važiuojate, greičio ribos saugomos magnetoloje, taip pat ir sritis aplink automobilį, jei jos čia paprašysite. Kai neatsako nė vienas žemėlapio duomenų serveris, plytelė ir balso įspėjimai veikia toliau pagal jas. Sritis iš naujo nuskaitoma kas mėnesį.</string>
+    <string name="limits_kept_radius">Sritis aplink automobilį</string>
+    <string name="limits_kept_download">Atsisiųsti</string>
+    <string name="limits_kept_downloading">Atsisiunčiama %1$d%%</string>
+    <string name="limits_kept_failed">Neatsakė nė vienas žemėlapio duomenų serveris. Bandykite vėliau.</string>
+    <string name="limits_kept_no_position">Automobilio padėtis dar nežinoma.</string>
+    <string name="limits_kept_section">Saugoma magnetoloje</string>
+    <string name="limits_kept_no_area">Dar nėra srities</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d kelias</item>
+        <item quantity="few">%d keliai</item>
+        <item quantity="many">%d kelio</item>
+        <item quantity="other">%d kelių</item>
+    </plurals>
+</resources>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Tempolimits auf dem Gerät</string>
+    <string name="limits_kept_row_detail">Gespeichert für die Zeit, in der die Kartendaten-Server nicht antworten</string>
+    <string name="limits_kept_explanation">Die Tempolimits der Straßen, die du fährst, bleiben auf dem Gerät, und ein Gebiet um das Auto, wenn du es hier anforderst. Antwortet kein Kartendaten-Server, laufen die Kachel und die Sprachwarnungen damit weiter. Ein Gebiet wird jeden Monat neu gelesen.</string>
+    <string name="limits_kept_radius">Gebiet um das Auto</string>
+    <string name="limits_kept_download">Herunterladen</string>
+    <string name="limits_kept_downloading">Wird geladen %1$d %%</string>
+    <string name="limits_kept_failed">Kein Kartendaten-Server hat geantwortet. Versuche es später noch einmal.</string>
+    <string name="limits_kept_no_position">Die Position des Autos ist noch nicht bekannt.</string>
+    <string name="limits_kept_section">Auf dem Gerät gespeichert</string>
+    <string name="limits_kept_no_area">Noch kein Gebiet</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d Straße</item>
+        <item quantity="other">%d Straßen</item>
+    </plurals>
+</resources>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Limiti di velocità sull\'autoradio</string>
+    <string name="limits_kept_row_detail">Conservati per quando i server dei dati mappa non rispondono</string>
+    <string name="limits_kept_explanation">I limiti delle strade che percorri restano sull\'autoradio, e anche una zona intorno all\'auto se la chiedi qui. Quando nessun server dei dati mappa risponde, il riquadro e gli avvisi vocali continuano con questi. Una zona viene riletta ogni mese.</string>
+    <string name="limits_kept_radius">Zona intorno all\'auto</string>
+    <string name="limits_kept_download">Scarica</string>
+    <string name="limits_kept_downloading">Scaricamento %1$d%%</string>
+    <string name="limits_kept_failed">Nessun server dei dati mappa ha risposto. Riprova più tardi.</string>
+    <string name="limits_kept_no_position">La posizione dell\'auto non è ancora nota.</string>
+    <string name="limits_kept_section">Conservati sull\'autoradio</string>
+    <string name="limits_kept_no_area">Nessuna zona per ora</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d strada</item>
+        <item quantity="many">%d strade</item>
+        <item quantity="other">%d strade</item>
+    </plurals>
+</resources>

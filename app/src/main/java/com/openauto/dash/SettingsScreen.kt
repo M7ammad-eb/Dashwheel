@@ -202,7 +202,7 @@ internal enum class SettingsTab(@StringRes val titleRes: Int, val icon: ImageVec
 /** The settings that open further into the pane; Lab's open over Lab. */
 internal enum class Deep {
     CAR, CAR_LOOK, REVERSE, SIGNALS, AI, UPKEEP, EXPLORER, WHEEL, PLACES, LANGUAGE, SECOND_SCREEN, LPG, MY_READINGS,
-    OBD, UNITS, ACCESS, ABOUT, LAB, UNIT_TOOLS, MAP_SERVERS, API_KEYS, HEAD_UNIT, TPMS, SENSOR_WATCH, KEPT_CAMERAS
+    OBD, UNITS, ACCESS, ABOUT, LAB, UNIT_TOOLS, MAP_SERVERS, API_KEYS, HEAD_UNIT, TPMS, SENSOR_WATCH, KEPT_CAMERAS, KEPT_LIMITS
 }
 
 /** Under this width the categories go along the top: a rail would leave the settings half a screen. */
@@ -298,6 +298,7 @@ internal fun SettingsScreen(
                         Deep.TPMS -> UsbTpmsSheet(onDismiss = back)
                         Deep.SENSOR_WATCH -> SensorWatchSheet(onDismiss = back)
                         Deep.KEPT_CAMERAS -> KeptCamerasSheet(onDismiss = back)
+                        Deep.KEPT_LIMITS -> KeptLimitsSheet(onDismiss = back)
                     }
                 }
             }
@@ -1081,6 +1082,7 @@ private fun DrivingPane(m: TopBarModel, open: (Deep) -> Unit) {
     SettingsRow(Icons.Filled.Videocam, stringResource(R.string.reverse_title), stringResource(R.string.reverse_settings_detail)) { open(Deep.REVERSE) }
     PlacesRow { open(Deep.PLACES) }
     KeptCamerasRow { open(Deep.KEPT_CAMERAS) }
+    KeptLimitsRow { open(Deep.KEPT_LIMITS) }
     WazeWakeSetting()
     // Every physical button together: what the wheel's do, then what the unit's own keys open.
     val keys = remember { Edition.full && KeyTargets.available() }
