@@ -260,7 +260,8 @@ class UpdateManager(private val context: Context) {
                     Uri.parse("package:${context.packageName}")
                 ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
-            if (!shown) _status.value = UpdateStatus.Error(R.string.sys_update_install_failed)
+            // The same words as the toast: what to allow, and that Update is to be tapped again.
+            if (!shown) _status.value = UpdateStatus.Error(R.string.dash_update_allow_installs)
         }
     }
 
