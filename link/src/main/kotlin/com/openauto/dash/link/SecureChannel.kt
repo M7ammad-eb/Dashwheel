@@ -67,10 +67,15 @@ class LinkSession internal constructor(
 
     /**
      * Sends [message]. False, with nothing sent, when it is too big for one
-     * frame: the other side would refuse the frame and drop the whole link.
+     * frame (the other side would refuse the frame and drop the whole link),
+     * or when JSON can't hold it (a NaN): thrown, it ended the caller's writer.
      */
     fun send(message: LinkMessage): Boolean {
-        val plain = LinkCodec.encode(message)
+        val plain = try {
+            LinkCodec.encode(message)
+        } catch (_: IllegalArgumentException) { // kotlinx SerializationException is one
+            return false
+        }
         if (plain.size > MAX_MESSAGE) return false
         seal(plain)
         return true

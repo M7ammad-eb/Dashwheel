@@ -323,7 +323,8 @@ object PhoneLink {
             for ((link, message) in outbox) {
                 sending = link to android.os.SystemClock.elapsedRealtime()
                 try {
-                    link.sendOrClose(message)
+                    // Refused while the link is up: a message JSON can't hold (a NaN) or too big; which one, for the log (#118).
+                    if (!link.sendOrClose(message) && session === link) DebugLog.note(app, "Phone link: ${message::class.simpleName} not sent")
                 } finally {
                     sending = null
                 }
