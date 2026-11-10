@@ -247,10 +247,13 @@ object UnitSignals {
      */
     internal fun parseOutsideTemp(text: String?): Double? {
         val t = text?.trim().orEmpty()
-        val n = Regex("-?\\d+(?:[.,]\\d+)?").find(t)?.value?.replace(',', '.')?.toDoubleOrNull() ?: return null
+        val n = TEMP_NUMBER.find(t)?.value?.replace(',', '.')?.toDoubleOrNull() ?: return null
         val c = if ('℉' in t || t.endsWith("F", ignoreCase = true)) (n - 32) / 1.8 else n
         return c.takeIf { it > -40.0 && it < 70.0 }
     }
+
+    // Compiled once: [parseOutsideTemp] runs every second on the units that poll the text.
+    private val TEMP_NUMBER = Regex("-?\\d+(?:[.,]\\d+)?")
 
     private fun systemProperty(name: String): String? = SysProps.get(name)
 }

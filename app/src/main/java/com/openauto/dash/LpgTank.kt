@@ -1,6 +1,7 @@
 package com.openauto.dash
 
 import android.content.Context
+import android.os.SystemClock
 import com.openauto.dash.vehicle.Hold
 import com.openauto.dash.vehicle.K
 import com.openauto.dash.vehicle.Vehicle
@@ -361,7 +362,8 @@ internal object LpgTank {
     }
 
     private fun tick() {
-        val now = System.currentTimeMillis()
+        // A clock GPS cannot set mid-drive: the flow step is a difference between ticks.
+        val now = SystemClock.elapsedRealtime()
         val dtMs = if (lastTickAt == 0L) 0L else (now - lastTickAt).coerceIn(0L, MAX_FLOW_STEP_MS)
         lastTickAt = now
         val trip = LocationFeed.trip.value

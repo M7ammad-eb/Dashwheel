@@ -108,6 +108,15 @@ class BrightnessButtonsTest {
     }
 
     @Test
+    fun thePressesAreTimedByUptimeNotByTheDate() {
+        // The head unit sets the Pi's date after every Hello: a step between two presses must not count as time passed.
+        val before = System.nanoTime() / 1_000_000
+        val now = BrightnessButtons.Clock.System.now()
+        val after = System.nanoTime() / 1_000_000
+        assert(now in before..after) { "$now is not between $before and $after" }
+    }
+
+    @Test
     fun levelsOutsideTheBarAreClamped() {
         val bench = Bench()
         val buttons = BrightnessButtons(up = 17, down = 27, pins = bench, clock = bench)

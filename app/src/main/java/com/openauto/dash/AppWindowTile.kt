@@ -1,5 +1,6 @@
 package com.openauto.dash
 
+import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -196,7 +197,10 @@ internal fun PipAnchorCard(
         val name = pkg?.substringAfterLast('.')
         // A status no poll has refreshed lately (the window is parked aside for
         // a pop-up, or tracking is paused) must not keep claiming "docked".
-        val checkedAgoS = ((rememberNow(1_000L).time - status.checkedAt) / 1000L).coerceAtLeast(0L)
+        // rememberNow only paces the recomposition: the age is on the monotonic
+        // clock, as checkedAt is, so a GPS or NTP step cannot stale or revive it.
+        rememberNow(1_000L)
+        val checkedAgoS = ((SystemClock.elapsedRealtime() - status.checkedAt) / 1000L).coerceAtLeast(0L)
         val docked = status.docked && checkedAgoS * 1000L <= STALE_STATUS_MS
         // A docked window covers its tile, so a tap that reaches the tile means
         // the window is not showing, whatever the system says: nudge it back.

@@ -350,11 +350,12 @@ object McuReader {
 
     @Synchronized
     fun start() {
-        // Without the MCU service, the stream is read through root: the Play edition has none.
-        if (Edition.play && !McuFeed.listening.value) return
+        // Counted whatever follows: every stop() takes one off, and an uncounted start would end the reader under another user.
         refCount++
         shutdown?.cancel()
         shutdown = null
+        // Without the MCU service, the stream is read through root: the Play edition has none.
+        if (Edition.play && !McuFeed.listening.value) return
         if (job?.isActive == true) return
         job = scope.launch { tail() }
     }

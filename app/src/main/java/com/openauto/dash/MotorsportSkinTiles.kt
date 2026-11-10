@@ -119,7 +119,7 @@ internal fun MsDriverDisplay(env: SkinTileEnv) {
     val obd = env.obdConnection == ObdConnectionState.CONNECTED
     val canConnect = speed == null && idle && !env.editing
     val profile by CarProfileStore.profile.collectAsState()
-    val redline = profile.redlineRpm ?: 4_500
+    val redline = profile.redlineRpm?.takeIf { it > 0 } ?: DEFAULT_REDLINE_RPM
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
@@ -274,7 +274,8 @@ private fun SpeedBlock(speed: Int?, obd: Boolean, gear: State<GearReading>, redl
                         MsText(rpm?.toString() ?: "----", msHero(fixedSp(capsSp * 1.45f), if (rpm != null) DashColors.TextPrimary else DashColors.Muted))
                     }
                     Spacer(Modifier.height(6.dp))
-                    val redFrom = ((redline * 0.78f) / redline * REV_BLOCKS).roundToInt().coerceIn(1, REV_BLOCKS)
+                    // The last blocks past 78 % of the red line are red (the red line itself ends the bar).
+                    val redFrom = (0.78f * REV_BLOCKS).roundToInt().coerceIn(1, REV_BLOCKS)
                     val lit = remember(gear, redline) {
                         { gear.value.rpm?.let { (it.toFloat() / redline * REV_BLOCKS).toInt().coerceIn(0, REV_BLOCKS) } ?: 0 }
                     }
@@ -694,22 +695,35 @@ private object MsTrack {
  * The route under way as a race: when it started, the time it was planned to
  * take, the most distance (or time) left seen, and when each sector was done.
  */
-private class MsRace(val startedAt: Long, val plannedMs: Long?) {
+private class MsRace(var startedAt: Long, var plannedMs: Long?) {
     var maxLeft = 0f
     val ends = LongArray(3)
+
+    /** A new route under the same guidance: the race starts over. */
+    fun restart(now: Long, planned: Long?) {
+        startedAt = now
+        plannedMs = planned
+        maxLeft = 0f
+        ends.fill(0L)
+    }
 }
 
 /** The race for the route on now and how far along it the car is, 0..1. */
 @Composable
 private fun rememberRace(nav: NavState): Pair<MsRace, Float> {
-    val race = remember(nav.active, nav.packageName) {
-        MsRace(System.currentTimeMillis(), etaMinutes(nav.eta)?.let { it * 60_000L })
+    // Keyed on the destination handed off too, and started over when what is left grows by a
+    // third (a new destination picked inside the navigation app): the old route's start, plan
+    // and sectors otherwise judged the new one. Times are differences: a clock GPS cannot set.
+    val handed by NavHandoff.handedOff.collectAsState()
+    val race = remember(nav.active, nav.packageName, handed?.at) {
+        MsRace(SystemClock.elapsedRealtime(), etaMinutes(nav.eta)?.let { it * 60_000L })
     }
     val left = kmLeft(nav.eta) ?: etaMinutes(nav.eta)?.toFloat()
     val progress = remember(race, left) {
+        if (left != null && race.maxLeft > 0f && left > race.maxLeft * 1.3f) race.restart(SystemClock.elapsedRealtime(), etaMinutes(nav.eta)?.let { it * 60_000L })
         if (left != null) race.maxLeft = max(race.maxLeft, left)
         val p = if (left == null || race.maxLeft <= 0f) 0f else (1f - left / race.maxLeft).coerceIn(0f, 1f)
-        val now = System.currentTimeMillis()
+        val now = SystemClock.elapsedRealtime()
         for (i in 0 until 3) if (race.ends[i] == 0L && p >= MsTrack.ends[i] - 0.001f) race.ends[i] = now
         p
     }

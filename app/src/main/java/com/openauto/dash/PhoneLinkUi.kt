@@ -70,6 +70,7 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.openauto.dash.link.ActionResult
 import com.openauto.dash.link.ConversationLine
+import com.openauto.dash.link.PairingOffer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -374,12 +375,17 @@ private const val COMPANION_PACKAGE = "com.dashwheel.companion"
 @Composable
 internal fun PhonePairingDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val offer = remember { PhoneLink.beginPairing(context) }
-    val phones by PhoneLink.phones.collectAsState()
-    val paired = phones.firstOrNull { it.id == offer.id }
-    DisposableEffect(offer) {
-        onDispose { if (PhoneLink.pending.value?.id == offer.id) PhoneLink.cancelPairing() }
+    // Begun once the dialog is on screen, not while it is composed: a composition thrown away
+    // before it applied would leave a code pending that nothing cancels.
+    var offer by remember { mutableStateOf<PairingOffer?>(null) }
+    DisposableEffect(Unit) {
+        val begun = PhoneLink.beginPairing(context)
+        offer = begun
+        onDispose { if (PhoneLink.pending.value?.id == begun.id) PhoneLink.cancelPairing() }
     }
+    val phones by PhoneLink.phones.collectAsState()
+    val current = offer ?: return
+    val paired = phones.firstOrNull { it.id == current.id }
     // Where the phone gets the companion app: the GitHub release's APK, or
     // the Play edition's companion on Google Play (same package name, see
     // companion/build.gradle.kts).
@@ -413,7 +419,7 @@ internal fun PhonePairingDialog(onDismiss: () -> Unit) {
                     Column(Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(stringResource(R.string.phone_pair_step2), color = DashColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
                         Text(stringResource(R.string.phone_pair_step3), color = DashColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                        QrCode(offer.toUri(), Modifier.fillMaxWidth())
+                        QrCode(current.toUri(), Modifier.fillMaxWidth())
                         QrCaption(stringResource(R.string.phone_pair_qr_pair), primary = true)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(color = DashColors.Accent, modifier = Modifier.size(18.dp))

@@ -248,22 +248,46 @@ object PhoneCalls {
         }
         synchronized(this) {
             val before = phone
+            var unknown: String? = null
             phone = if (phase == CallState.Phase.IDLE) {
                 CallState(CallState.Phase.IDLE)
             } else {
                 // The same call keeps its caller when a later broadcast lacks the number.
                 val sameCall = before.phase != CallState.Phase.IDLE
                 val known = number ?: before.number.takeIf { sameCall }
-                val contact = if (known != null && known != before.number) lookUp(context, known) else null
+                // A number not seen in this call: told now, as a number; the name and photo follow from the worker.
+                if (known != null && known != before.number) unknown = known
                 CallState(
                     phase = phase,
                     number = known,
-                    name = contact?.first ?: before.name.takeIf { sameCall && known == before.number },
-                    photoPng = contact?.second ?: before.photoPng.takeIf { sameCall && known == before.number },
+                    name = before.name.takeIf { sameCall && known == before.number },
+                    photoPng = before.photoPng.takeIf { sameCall && known == before.number },
                     canControl = canControl(context)
                 )
             }
             publish()
+            unknown?.let { lookUpLater(context, it) }
+        }
+    }
+
+    /** Which contact lookup is the latest: an older one's answer, come late, is dropped. */
+    private var lookups = 0
+
+    /**
+     * The contacts query and the photo's decode take tens of milliseconds: off
+     * the main thread, where the broadcast had them run under the lock
+     * [onNotificationPosted] waits for. The answer only counts while this call,
+     * with this number, is still the one shown: a later state is never overtaken.
+     */
+    private fun lookUpLater(context: Context, number: String) {
+        val gen = ++lookups
+        PhoneLists.worker.execute {
+            val contact = lookUp(context, number) ?: return@execute
+            synchronized(this) {
+                if (gen != lookups || phone.phase == CallState.Phase.IDLE || phone.number != number) return@synchronized
+                phone = phone.copy(name = contact.first, photoPng = contact.second)
+                publish()
+            }
         }
     }
 

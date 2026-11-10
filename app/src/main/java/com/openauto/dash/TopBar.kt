@@ -465,12 +465,15 @@ private fun ClusterReadout(speedKmh: Int) {
         FuelSegmentBar(label = stringResource(R.string.vehicle_fuel), percent = fuel?.percent)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                val lit = g.rpm?.let { (it / 7000f * TACHO_SEGMENTS).toInt().coerceIn(0, TACHO_SEGMENTS) } ?: 0
+                // On the car's own scale: a diesel's 4 500 red line lights the last segments, a petrol's 7 500 fits.
+                val scale = rememberRevScale()
+                val lit = g.rpm?.let { (scale.fraction(it) * TACHO_SEGMENTS).toInt().coerceIn(0, TACHO_SEGMENTS) } ?: 0
+                val redFrom = (scale.redFrom * TACHO_SEGMENTS).roundToInt().coerceIn(1, TACHO_SEGMENTS)
                 repeat(TACHO_SEGMENTS) { i ->
                     val colour = when {
                         i >= lit -> DashColors.CardHi
-                        i >= TACHO_SEGMENTS - 2 -> DashColors.Critical
-                        i >= TACHO_SEGMENTS - 4 -> DashColors.Tacho
+                        i >= redFrom -> DashColors.Critical
+                        i >= redFrom - 2 -> DashColors.Tacho
                         else -> DashColors.Accent
                     }
                     Box(Modifier.size(width = 12.dp, height = 5.dp).clip(RoundedCornerShape(2.dp)).background(colour))
@@ -1344,7 +1347,9 @@ internal fun EditBar(
         )
         val measurer = rememberTextMeasurer()
         val labelStyle = MaterialTheme.typography.labelLarge
-        val labelsWidth = with(LocalDensity.current) { actionLabels.sumOf { measurer.measure(it, labelStyle).size.width }.toDp() }
+        val density = LocalDensity.current
+        // Measured once per set of labels, not at every edit (undo, zoom) that recomposes the bar.
+        val labelsWidth = remember(actionLabels, labelStyle, density) { with(density) { actionLabels.sumOf { measurer.measure(it, labelStyle).size.width }.toDp() } }
         // The actions keep their names only where the page's name still reads beside
         // them: in French they left it "Organisatio…" on a 1280 px screen.
         val iconsOnly = narrow || labelsWidth + EDIT_ACTION_CHROME * actionLabels.size + EDIT_BAR_REST > maxWidth

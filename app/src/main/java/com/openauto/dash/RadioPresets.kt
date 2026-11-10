@@ -49,14 +49,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 /** A stored station: [freq] in hundredths of a MHz (9850 = 98.5 MHz). */
 /** An FM frequency in the radio's 10 kHz units (64 to 108 MHz, Eastern Europe's band included); AM ones are in kHz. */
 internal fun isFm(freq: Int): Boolean = freq in 6_000..11_000
 
 internal data class RadioStation(val freq: Int, val name: String) {
-    val mhz: String get() = String.format(Locale.ROOT, "%.1f", freq / 100.0)
+    /** "98.5", "101.25", "104.0": also the tune command, where a tenth rounded off tuned 50 kHz beside a x.x5 station. */
+    val mhz: String get() = (freq / 100.0).toBigDecimal().stripTrailingZeros().toPlainString().let { if ('.' in it) it else "$it.0" }
 }
 
 /**

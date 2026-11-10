@@ -32,8 +32,14 @@ trap cleanup EXIT
 
 if [ -z "$BASE" ]; then
   BASE=$WORK/base.img.xz
-  echo "== downloading Raspberry Pi OS Lite"
-  curl -fL --retry 3 -o "$BASE" https://downloads.raspberrypi.com/raspios_lite_arm64_latest
+  # The Foundation publishes a .sha256 beside every image: a download cut short or
+  # altered on the way is caught here, not on a hundred cards.
+  url=${BASE_URL:-$(curl -fsIL -o /dev/null -w '%{url_effective}' https://downloads.raspberrypi.com/raspios_lite_arm64_latest)}
+  echo "== downloading Raspberry Pi OS Lite ($(basename "$url"))"
+  curl -fL --retry 3 -o "$BASE" "$url"
+  curl -fL --retry 3 -o "$BASE.sha256" "$url.sha256"
+  echo "== checking the download"
+  (cd "$WORK" && sed "s|[^ ]*\.img\.xz|base.img.xz|" base.img.xz.sha256 | sha256sum -c -)
 fi
 IMG=$WORK/card.img
 xz -dc "$BASE" > "$IMG"

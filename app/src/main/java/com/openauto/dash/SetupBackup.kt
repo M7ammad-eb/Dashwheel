@@ -32,7 +32,9 @@ internal object SetupBackup {
         // system state: the navigation bar policy it found, the widget ids it let go of.
         "display_link", "docked_nav_bar", "widget_host",
         // How this unit's floating home screen was dealt with (StuckSplit).
-        "floating_home"
+        "floating_home",
+        // The service keys (Tankerkönig…): secrets, like the Gemini key below; a USB stick is no place for them.
+        "api_keys"
     )
 
     /** Keys left out of a file that is otherwise saved: the Gemini key is a secret. */
@@ -57,6 +59,9 @@ internal object SetupBackup {
      */
     fun restore(context: Context, text: String): Result<Int> = runCatching {
         val files = decode(text)
+        // A name with a path in it would write outside shared_prefs: refused before anything is touched.
+        files.keys.forEach { require('/' !in it && '\\' !in it && it.isNotBlank()) { "bad preference file name" } }
+        var written = 0
         for ((name, values) in files) {
             if (name in SKIP_FILES) continue
             val skip = SKIP_KEYS[name].orEmpty()
@@ -65,10 +70,16 @@ internal object SetupBackup {
             val kept = prefs.all.filterKeys { it in skip }
             val edit = prefs.edit().clear()
             (kept + values.filterKeys { it !in skip }).forEach { (key, value) -> put(edit, key, value) }
-            check(edit.commit()) { "could not write $name" }
+            // A failure after the first file: what is on disk is half the old setup, half the
+            // new, and the running stores would save their old values over it; the caller restarts.
+            if (!edit.commit()) throw if (written > 0) PartlyRestored(name) else IllegalStateException("could not write $name")
+            written++
         }
         files.size
     }
+
+    /** Some files were written before one failed: only a restart leaves the unit in one state. */
+    class PartlyRestored(name: String) : RuntimeException("could not write $name after other files")
 
     /** Starts the launcher afresh, so every part reads the restored setup (they keep it in memory). */
     fun restart(context: Context) {

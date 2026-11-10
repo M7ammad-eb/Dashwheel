@@ -55,8 +55,12 @@ internal object WeatherWarnings {
     private val entry = Regex("<entry>(.*?)</entry>", RegexOption.DOT_MATCHES_ALL)
     private val titleForm = Regex("^(Yellow|Orange|Red) (.+?) Warning", RegexOption.IGNORE_CASE)
 
+    // One pattern per tag name, compiled once: tag() runs several times for each of hundreds of entries per refresh.
+    private val tagPatterns = HashMap<String, Regex>()
+
     private fun tag(xml: String, name: String): String? =
-        Regex("<$name[^>]*>(.*?)</$name>", RegexOption.DOT_MATCHES_ALL).find(xml)?.groupValues?.get(1)?.trim()
+        synchronized(tagPatterns) { tagPatterns.getOrPut(name) { Regex("<$name[^>]*>(.*?)</$name>", RegexOption.DOT_MATCHES_ALL) } }
+            .find(xml)?.groupValues?.get(1)?.trim()
 
     private fun time(text: String?): Long = text?.let { runCatching { OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() } ?: 0L
 

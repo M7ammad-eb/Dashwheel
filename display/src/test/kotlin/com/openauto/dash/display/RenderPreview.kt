@@ -1,6 +1,7 @@
 package com.openauto.dash.display
 
 import com.openauto.dash.link.ClusterState
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
 import javax.imageio.ImageIO
@@ -16,7 +17,7 @@ class RenderPreview {
 
     @Test
     fun render() {
-        val dir = System.getenv("RENDER_DIR") ?: return
+        val dir = System.getenv("RENDER_DIR") ?: run { assumeTrue("RENDER_DIR not set", false); return }
         System.setProperty("java.awt.headless", "true")
         val base = ClusterState(
             clock = 1_700_000_000_000, speedKmh = 87, rpm = 2100, coolantC = 90, fuelPct = 40, rangeKm = 310,

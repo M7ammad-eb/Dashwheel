@@ -16,8 +16,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Reads the number on a round sign [com.openauto.dash.roadwatch.SignFinder]
-/**
- * Reads the number on a round sign [com.openauto.dash.roadwatch.SignFinder]
  * found: its middle copied out of the camera's frame, made bigger, and read
  * first by [SignClassifier] (a limit, the end of one, another sign, no sign;
  * under a millisecond), then, when that isn't sure, by ML Kit's text
@@ -27,13 +25,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * no reading: seen twice ([sawEnd], or the classifier's word), it ends the limit.
  */
 class SignReader(context: Context, private val dir: File) {
- */
-class SignReader(context: Context, private val dir: File) {
     private val client = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private val classifier = runCatching { SignClassifier(context) }.getOrNull()
     private val busy = AtomicBoolean(false)
     private val confirm = SignConfirm()
     private val saver = Executors.newSingleThreadExecutor()
+    @Volatile private var closed = false
 
     /** Reads [spot] in the RGBA frame [rgba] (see [Upright.index]); the pixels are copied before this returns. */
     fun read(rgba: ByteBuffer, width: Int, height: Int, rowStride: Int, rotation: Int, spot: SignSpot) {
@@ -50,11 +47,13 @@ class SignReader(context: Context, private val dir: File) {
         }
         client.process(InputImage.fromBitmap(bitmap, 0))
             .addOnSuccessListener { text ->
+                // Read after close (the screen left meanwhile): nobody to tell.
+                if (closed) return@addOnSuccessListener
                 keep(bitmap, text.text)
                 val kmh = SignConfirm.limitIn(text.text) ?: return@addOnSuccessListener
                 synchronized(confirm) { confirm.read(kmh, SystemClock.elapsedRealtime()) }?.let { RoadSigns.seen(it) }
             }
-            .addOnFailureListener { keep(bitmap, "failed") }
+            .addOnFailureListener { if (!closed) keep(bitmap, "failed") }
             .addOnCompleteListener { busy.set(false) }
     }
 
@@ -69,18 +68,22 @@ class SignReader(context: Context, private val dir: File) {
      * to see what was misread.
      */
     private fun keep(bitmap: Bitmap, read: String) {
-        saver.execute {
-            runCatching {
-                dir.mkdirs()
-                val label = read.filter { it.isLetterOrDigit() }.take(12).ifEmpty { "nothing" }
-                File(dir, "${System.currentTimeMillis()}-$label.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-                dir.listFiles()?.sortedByDescending { it.name }?.drop(KEPT)?.forEach { it.delete() }
+        // A reading that finishes as close shuts the saver is refused by it: the face goes unkept, the app stays up.
+        runCatching {
+            saver.execute {
+                runCatching {
+                    dir.mkdirs()
+                    val label = read.filter { it.isLetterOrDigit() }.take(12).ifEmpty { "nothing" }
+                    File(dir, "${System.currentTimeMillis()}-$label.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                    dir.listFiles()?.sortedByDescending { it.name }?.drop(KEPT)?.forEach { it.delete() }
+                }
+                bitmap.recycle()
             }
-            bitmap.recycle()
-        }
+        }.onFailure { bitmap.recycle() }
     }
 
     fun close() {
+        closed = true
         client.close()
         classifier?.close()
         saver.shutdown()

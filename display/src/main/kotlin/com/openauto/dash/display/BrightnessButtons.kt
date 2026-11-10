@@ -46,11 +46,14 @@ class BrightnessButtons(
     }
 
     interface Clock {
+        /** Milliseconds that only go forward: the presses are timed against each other, never against the date. */
         fun now(): Long
         fun sleep(ms: Long)
 
         object System : Clock {
-            override fun now() = java.lang.System.currentTimeMillis()
+            // Not the wall clock: the head unit sets the Pi's date after every Hello, and a step
+            // between two presses left the bar taken for closed (or open) and every level a step off.
+            override fun now() = java.lang.System.nanoTime() / 1_000_000
             override fun sleep(ms: Long) = Thread.sleep(ms)
         }
     }

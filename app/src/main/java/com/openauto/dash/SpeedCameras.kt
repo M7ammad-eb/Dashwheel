@@ -155,7 +155,7 @@ internal object SpeedCameras {
     }
 
     private fun fetch(lat: Double, lng: Double): List<SpeedCamera> {
-        val query = "[out:json][timeout:20];node(around:$RADIUS_M,$lat,$lng)[highway=speed_camera];out;"
+        val query = "[out:json][timeout:20];node(around:$RADIUS_M,${Overpass.coord(lat)},${Overpass.coord(lng)})[highway=speed_camera];out;"
         return parse(Overpass.query(query))
     }
 
@@ -165,7 +165,8 @@ internal object SpeedCameras {
         return (0 until elements.length()).mapNotNull { i ->
             val e = elements.optJSONObject(i) ?: return@mapNotNull null
             if (!e.has("lat") || !e.has("lon")) return@mapNotNull null
-            val limit = e.optJSONObject("tags")?.optString("maxspeed")?.takeWhile { it.isDigit() }?.toIntOrNull()
+            // As the road limits are read: "50 mph" is 80 km/h, not 50 (the card shows and says it in the driver's units).
+            val limit = parseMaxspeed(e.optJSONObject("tags")?.optString("maxspeed"))
             SpeedCamera(e.optDouble("lat"), e.optDouble("lon"), limit)
         }
     }
@@ -185,6 +186,8 @@ internal object SpeedCameras {
     fun nearestAhead(loc: Location, cameras: List<SpeedCamera>): CameraAhead? {
         if (!loc.hasBearing()) return null
         return cameras.mapNotNull { c ->
+            // The flat-earth distance first, with no allocation: a whole country's cameras are looked at each second.
+            if (metresBetween(loc.latitude, loc.longitude, c.lat, c.lng) > AHEAD_MAX_M * 1.05) return@mapNotNull null
             val to = Location("cam").apply { latitude = c.lat; longitude = c.lng }
             val d = loc.distanceTo(to)
             if (d > AHEAD_MAX_M) return@mapNotNull null

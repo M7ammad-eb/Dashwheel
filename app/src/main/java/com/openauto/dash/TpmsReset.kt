@@ -90,7 +90,13 @@ internal object TpmsReset {
         if (!gps) gps = LocationFeed.acquire(context)
         val now = SystemClock.elapsedRealtime()
         val speed = speedKmhNow(K.GPS_SPEED)
-        drivingSince = if (speed != null && speed >= DRIVING_KMH) drivingSince.takeIf { it > 0 } ?: now else 0L
+        // A crawl in a queue keeps the count; only standing still (or no speed at all) starts it over,
+        // or three minutes of driving in town never came together.
+        drivingSince = when {
+            speed == null || speed <= 0 -> 0L
+            speed >= DRIVING_KMH -> drivingSince.takeIf { it > 0 } ?: now
+            else -> drivingSince
+        }
         if (!stuck(now, drivingSince, heardAt, resetThisDrive, resetAt, SPACING_MS) || DemoMode.isOn) return
         resetThisDrive = true
         resetAt = now

@@ -301,7 +301,8 @@ internal class FytKeys(private val app: Context, private val toolkit: FytToolkit
     private var sound: FytToolkit.FytModule? = null
     private var lastMute: Int? = null
     private var registeredAt = 0L
-    private var previousType: String? = null
+    /** Written by the take-over coroutine (IO), read by [release] on the feed thread. */
+    @Volatile private var previousType: String? = null
 
     private val callback by lazy {
         FytToolkit.FytCallback(toolkit.feed) { code, ints, _, _ ->
@@ -393,6 +394,11 @@ internal class FytKeys(private val app: Context, private val toolkit: FytToolkit
                 val out = runCatching { DockShell.shell(app, "setprop ${FytProtocol.PROP_CARLINK_TYPE} ${FytProtocol.CARLINK_TAKE_KEYS}") }
                     .getOrElse { "shell failed: ${it.message}" }
                 val ok = SysProps.get(FytProtocol.PROP_CARLINK_TYPE) == FytProtocol.CARLINK_TAKE_KEYS
+                // Turned off while the shell was busy: [release] has already run with nothing to put back, so it is done here.
+                if (!_taking.value) {
+                    if (ok) runCatching { DockShell.shell(app, "setprop ${FytProtocol.PROP_CARLINK_TYPE} ${was.ifEmpty { "0" }}") }
+                    return@launch
+                }
                 if (ok) {
                     previousType = was.ifEmpty { "0" }
                     _listening.value = true
@@ -400,7 +406,6 @@ internal class FytKeys(private val app: Context, private val toolkit: FytToolkit
                     return@launch
                 }
                 Log.w(TAG, "could not take the unit's keys (try ${attempt + 1}): ${out.trim().ifEmpty { "no answer" }}")
-                if (!_taking.value) return@launch
                 delay(TAKE_RETRY_MS)
             }
             _listening.value = false

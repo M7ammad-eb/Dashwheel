@@ -491,7 +491,9 @@ private fun GateRow(r: GearReading, accent: Color, warn: Color, fill: Color, ink
 @Composable
 internal fun gearFace(): WidgetFace {
     val r by rememberGear()
-    val redline = CarProfileStore.current.redlineRpm ?: 4_500
+    // As state: a red line typed in while the tile shows moves the shift lights at once.
+    val profile by CarProfileStore.profile.collectAsState()
+    val redline = profile.redlineRpm ?: DEFAULT_REDLINE_RPM
     val u = LocalUnits.current
     return WidgetFace(
         icon = Icons.Filled.SettingsInputComponent,

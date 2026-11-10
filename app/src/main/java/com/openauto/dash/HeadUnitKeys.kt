@@ -27,8 +27,9 @@ object HeadUnitKeys {
     private const val LISTENER = "android.qf.util.IUtilEventListener"
     private const val TX_REGISTER = 2
     private const val TX_ON_KEY = 1
-    /** The firmware's service restarts: listen again after this. */
+    /** The firmware's service restarts: listen again after this, waiting longer each time it isn't back. */
     private const val RETRY_MS = 2_000L
+    private const val RETRY_MAX_MS = 60_000L
 
     /** The firmware's own keys start here; the ones below are Android's and reach the launcher anyway. */
     const val FIRST_VENDOR_KEY = 290
@@ -36,6 +37,7 @@ object HeadUnitKeys {
     private val main = Handler(Looper.getMainLooper())
     private var appContext: Context? = null
     private var service: IBinder? = null
+    private var retryMs = RETRY_MS
 
     private val listener = object : Binder() {
         init {
@@ -44,18 +46,22 @@ object HeadUnitKeys {
 
         override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
             if (code != TX_ON_KEY) return super.onTransact(code, data, reply, flags)
-            data.enforceInterface(LISTENER)
-            val keyCode = data.readInt()
-            val event = if (data.readInt() != 0) {
-                data.readInt()
-                @Suppress("DEPRECATION")
-                data.readParcelable<KeyEvent>(KeyEvent::class.java.classLoader)
-            } else {
-                null
-            }
+            // Never an exception back: it would break the service's loop over its listeners.
+            val key = runCatching {
+                data.enforceInterface(LISTENER)
+                val keyCode = data.readInt()
+                val event = if (data.readInt() != 0) {
+                    data.readInt()
+                    @Suppress("DEPRECATION")
+                    data.readParcelable<KeyEvent>(KeyEvent::class.java.classLoader)
+                } else {
+                    null
+                }
+                keyCode to event
+            }.getOrNull()
             // The service waits for the reply: answer at once, act on the main thread.
             reply?.writeNoException()
-            main.post { onKey(keyCode, event) }
+            if (key != null) main.post { onKey(key.first, key.second) }
             return true
         }
     }
@@ -63,7 +69,7 @@ object HeadUnitKeys {
     private val died = IBinder.DeathRecipient {
         service = null
         _listeningFlow.value = false
-        main.postDelayed({ register() }, RETRY_MS)
+        retryLater()
     }
 
     private val _listeningFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
@@ -81,7 +87,7 @@ object HeadUnitKeys {
     val listening: Boolean get() = service != null
 
     private fun register() {
-        val binder = serviceBinder() ?: return
+        val binder = serviceBinder() ?: run { retryLater(); return }
         val data = Parcel.obtain()
         val reply = Parcel.obtain()
         try {
@@ -91,14 +97,22 @@ object HeadUnitKeys {
             reply.readException()
             binder.linkToDeath(died, 0)
             service = binder
+            retryMs = RETRY_MS
             _listeningFlow.value = true
             Log.i(TAG, "listening to the unit's keys")
         } catch (e: Exception) {
             Log.w(TAG, "could not listen to the unit's keys", e)
+            retryLater()
         } finally {
             data.recycle()
             reply.recycle()
         }
+    }
+
+    /** The service isn't there or refused: once more later, each wait twice the last up to [RETRY_MAX_MS]. */
+    private fun retryLater() {
+        main.postDelayed({ register() }, retryMs)
+        retryMs = (retryMs * 2).coerceAtMost(RETRY_MAX_MS)
     }
 
     private fun onKey(keyCode: Int, event: KeyEvent?) {

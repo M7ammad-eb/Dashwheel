@@ -367,6 +367,9 @@ object ObdBluetoothManager {
                         }
                     }
                         .onFailure {
+                            // The dashboard leaving composition mid-attempt is not an adapter fault: the
+                            // tile showed "Job was cancelled" as the reason the adapter failed.
+                            if (it is kotlinx.coroutines.CancellationException) throw it
                             Log.w(TAG, "connect failed", it)
                             if (it is SecurityException) fail(R.string.vehicle_err_permission)
                             else _lastError.value = it.message ?: it.javaClass.simpleName
@@ -768,7 +771,8 @@ object ObdBluetoothManager {
         return try {
             candidate.connect()
             watchdog.interrupt()
-            if (candidate.isConnected) candidate else null
+            // Returned without connecting: closed, or the socket stays open for every redial.
+            if (candidate.isConnected) candidate else { runCatching { candidate.close() }; null }
         } catch (e: IOException) {
             watchdog.interrupt()
             Log.w(TAG, "connect: ${e.message}")

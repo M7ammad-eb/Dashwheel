@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -517,7 +518,8 @@ internal class AlertWindow(
         if (style == AlertStyle.PANEL || style == AlertStyle.FULL) return null
         if (lp.gravity and Gravity.VERTICAL_GRAVITY_MASK != Gravity.TOP || v.width == 0 || v.height == 0) return null
         val dm = context.resources.displayMetrics
-        val left = when (lp.gravity and Gravity.HORIZONTAL_GRAVITY_MASK) {
+        // Absolute: END is the left in a right-to-left language, where the stack would otherwise be measured from the wrong edge.
+        val left = when (Gravity.getAbsoluteGravity(lp.gravity, v.layoutDirection) and Gravity.HORIZONTAL_GRAVITY_MASK) {
             Gravity.CENTER_HORIZONTAL -> (dm.widthPixels - v.width) / 2
             Gravity.RIGHT -> dm.widthPixels - lp.x - v.width
             else -> lp.x
@@ -713,6 +715,7 @@ internal fun FullScreenModal(onTap: () -> Unit, tone: Color = DashColors.Accent,
 @Composable
 internal fun <T : Any> rememberLast(value: T?): T? {
     val last = remember { mutableStateOf(value) }
-    if (value != null && last.value != value) last.value = value
+    // After the pass, not during it: a write to state just read here recomposed every alert twice.
+    SideEffect { if (value != null && last.value != value) last.value = value }
     return value ?: last.value
 }

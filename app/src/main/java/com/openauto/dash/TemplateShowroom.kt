@@ -178,7 +178,8 @@ internal fun TemplateShowroom(
                 val centrePage = onlyPage ?: DashboardStore.CENTER
                 val sides = onlyPage == null && reach != TemplateReach.HOME
                 Crossfade(targetState = chosen, label = "template") { shown ->
-                    val pages = if (shown == chosen) built else TemplatePlacer.pages(shown, screen)
+                    // Remembered: the outgoing template was placed again on every frame of the fade.
+                    val pages = if (shown == chosen) built else remember(shown, screen) { TemplatePlacer.pages(shown, screen) }
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         if (sides) {
                             SidePage(pages[0], pageName(0), pageSize, sideW, Modifier.align(Alignment.CenterStart).padding(start = 40.dp), tile, turn = 30f)

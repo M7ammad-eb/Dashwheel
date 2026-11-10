@@ -60,10 +60,10 @@ internal object WheelMonitor {
     private var monitoring = false
     private var inputHeld = false
     private var inputJob: Job? = null
-    private var inputProcess: Process? = null
+    private var inputProcess: RootShell.Stream? = null
     private var logHeld = false
     private var logJob: Job? = null
-    private var logProcess: Process? = null
+    private var logProcess: RootShell.Stream? = null
 
     fun add(source: Source, text: String, learn: WheelKey? = null) {
         _lines.update { listOf(Line(nextLineId(), source, text.take(160), learn)) + it.take(MAX_LINES - 1) }
@@ -113,7 +113,7 @@ internal object WheelMonitor {
         if (!wanted) {
             inputJob?.cancel()
             inputJob = null
-            inputProcess?.let(::kill)
+            inputProcess?.kill()
             inputProcess = null
             return
         }
@@ -130,7 +130,7 @@ internal object WheelMonitor {
         if (!wanted) {
             logJob?.cancel()
             logJob = null
-            logProcess?.let(::kill)
+            logProcess?.kill()
             logProcess = null
             return
         }
@@ -179,24 +179,23 @@ internal object WheelMonitor {
         return tidy.take(MAX_PATTERN)
     }
 
-    /** Runs [command] under su until cancelled, handing each line to [onLine]; [onStart] keeps the process to kill it. */
-    private fun sniff(command: String, onStart: (Process) -> Unit = {}, onLine: (String) -> Unit): Job = scope.launch {
+    /**
+     * Runs [command] under su until cancelled, handing each line to [onLine];
+     * [onStart] keeps the stream to kill it. Through [RootShell.stream], which
+     * knows the root shell's pid: killing a raw `su` client left `getevent`
+     * running until its next key press.
+     */
+    private fun sniff(command: String, onStart: (RootShell.Stream) -> Unit = {}, onLine: (String) -> Unit): Job = scope.launch {
         if (Edition.play) return@launch
-        val p = runCatching { Runtime.getRuntime().exec(arrayOf("su", "-c", command)) }.getOrNull() ?: return@launch
-        synchronized(this@WheelMonitor) { onStart(p) }
+        val s = runCatching { RootShell.stream(command) }.getOrNull() ?: return@launch
+        synchronized(this@WheelMonitor) { onStart(s) }
         try {
-            val reader = p.inputStream.bufferedReader()
-            while (isActive) onLine(reader.readLine() ?: break)
+            s.readPid()
+            while (isActive) onLine(s.reader.readLine() ?: break)
         } catch (e: IOException) {
             // Killed by stop(), or su refused: nothing more to show from here.
         } finally {
-            kill(p)
+            s.kill()
         }
-    }
-
-    private fun kill(p: Process) {
-        runCatching { p.inputStream.close() }
-        runCatching { p.destroy() }
-        runCatching { p.destroyForcibly() }
     }
 }

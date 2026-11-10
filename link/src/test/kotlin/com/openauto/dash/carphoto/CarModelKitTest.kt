@@ -3,6 +3,7 @@ package com.openauto.dash.carphoto
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
@@ -243,6 +244,7 @@ class CarModelKitTest {
     fun modelsGivenAreBaked() {
         val dir = File("build/carmodel-in")
         val files = dir.listFiles { f -> f.extension.equals("glb", true) }.orEmpty()
+        assumeTrue("no models in $dir", files.isNotEmpty())
         for (f in files) {
             val t0 = System.nanoTime()
             var model = CarModelKit.read(f.readBytes(), ::decode)

@@ -168,6 +168,47 @@ class RoadRulesTest {
     }
 
     @Test
+    fun aFrameWithoutASpeedKeepsTheWarningUpAndWhatWasCounted() {
+        val r = RoadRules()
+        r.update(closingFast, 90f, false, 0)
+        assertEquals(RoadWarning.COLLISION, r.update(closingFast, 90f, false, 100))
+        // The car's speed missed for a frame: the warning stays its time, and goes when it is over.
+        assertEquals(RoadWarning.COLLISION, r.update(RoadScene(), null, false, 200))
+        assertEquals(RoadWarning.COLLISION, r.update(RoadScene(), 90f, false, 1_500))
+        assertNull(r.update(RoadScene(), null, false, 2_200))
+        // Nor does it forget that the car has driven: the next stop is still a queue.
+        val q = RoadRules().driven()
+        assertNull(q.update(RoadScene(leadM = 6f), null, false, 0))
+        assertNull(q.update(RoadScene(leadM = 6f), 0f, false, 100))
+        assertNull(q.update(RoadScene(leadM = 6f), 0f, false, 3_500))
+        assertNull(q.update(RoadScene(leadM = 8f), 0f, false, 3_600))
+        assertNull(q.update(RoadScene(leadM = 10f), 0f, false, 3_700))
+        assertNull(q.update(RoadScene(leadM = 11f), 0f, false, 3_800))
+        assertEquals(RoadWarning.MOVED_OFF, q.update(RoadScene(leadM = 12f), 0f, false, 4_100))
+    }
+
+    @Test
+    fun clearingForgetsEverythingHalfCounted() {
+        // Told once about following too close: cleared, the next drive's first time is told too, not a minute later.
+        val r = RoadRules()
+        val close = RoadScene(leadM = 15f, closingMps = 0f)
+        r.update(close, 90f, false, 0)
+        assertEquals(RoadWarning.TOO_CLOSE, r.update(close, 90f, false, 3_000))
+        r.clear()
+        assertNull(r.update(close, 90f, false, 4_000))
+        assertEquals(RoadWarning.TOO_CLOSE, r.update(close, 90f, false, 7_000))
+        // An indicator on as Road watch stopped doesn't excuse a drift once it starts again.
+        val l = RoadRules()
+        l.update(RoadScene(offset = 0f, lines = 2), 100f, true, 0)
+        l.clear()
+        var t = 100L
+        fun at(offset: Float) = l.update(RoadScene(offset = offset, lines = 2), 100f, false, t).also { t += 100 }
+        repeat(3) { assertNull(at(0f)) }
+        listOf(0.05f, 0.10f, 0.15f, 0.20f, 0.24f, 0.26f).forEach { assertNull(at(it)) }
+        assertEquals(RoadWarning.LANE_RIGHT, at(0.27f))
+    }
+
+    @Test
     fun thePhonesSpeedStandsInForTheCars() {
         val r = RoadRules()
         val scene = closingFast.copy(speedKmh = 90f)

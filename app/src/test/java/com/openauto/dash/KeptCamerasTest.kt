@@ -91,7 +91,8 @@ class KeptCamerasTest {
                 {"type":"way","id":4}
             ]}"""
         )
-        assertEquals(listOf(paris, lyon, SpeedCamera(50.6292, 3.0573, null)), SpeedCameras.parse(json))
+        // An implied limit ("FR:urban") reads as the road limits do, 50 km/h, not as no limit.
+        assertEquals(listOf(paris, SpeedCamera(45.764, 4.8357, 50), SpeedCamera(50.6292, 3.0573, null)), SpeedCameras.parse(json))
         assertEquals(emptyList<SpeedCamera>(), SpeedCameras.parse(JSONObject("{}")))
     }
 

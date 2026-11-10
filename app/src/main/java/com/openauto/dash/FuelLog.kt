@@ -1,5 +1,6 @@
 package com.openauto.dash
 
+import android.os.SystemClock
 import com.openauto.dash.vehicle.fuelInfoNow
 import com.openauto.dash.vehicle.Vehicle
 import com.openauto.dash.vehicle.K
@@ -133,7 +134,8 @@ internal object FuelLog {
                 if (DemoMode.isOn) continue
                 val info = fuelInfoNow() ?: continue
                 val before = gauge.baseline
-                val (next, rise) = FuelLogRules.step(gauge, info.percent, System.currentTimeMillis())
+                // The settle time is a difference between reads: a clock GPS sets mid-drive would cut it or stretch it.
+                val (next, rise) = FuelLogRules.step(gauge, info.percent, SystemClock.elapsedRealtime())
                 gauge = next
                 if (next.baseline != before) appContext?.let { prefs(it).edit().putInt("baseline", next.baseline ?: -1).apply() }
                 if (rise != null) logRise(rise, info)

@@ -461,7 +461,7 @@ private fun FutDriveStats(env: SkinTileEnv, modifier: Modifier) {
                 FutText(g.rpm?.let { groupThousands(it) } ?: "--", futNum(labelDp * 1.3f))
             }
             Spacer(Modifier.height(8.dp))
-            FutBar(g.rpm?.let { it / SKIN_RPM_MAX } ?: 0f, Modifier.fillMaxWidth())
+            FutBar(rememberRevScale().fraction(g.rpm), Modifier.fillMaxWidth())
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(Modifier.weight(1f).futPanel(DashColors.Accent).padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -676,7 +676,7 @@ private fun RpmLine(rpm: Int?, capsDp: Float) {
             FutText(rpm?.let { groupThousands(it) } ?: "--", futNum(capsDp * 1.3f))
         }
         Spacer(Modifier.height(4.dp))
-        FutBar(rpm?.let { it / SKIN_RPM_MAX } ?: 0f, Modifier.fillMaxWidth())
+        FutBar(rememberRevScale().fraction(rpm), Modifier.fillMaxWidth())
     }
 }
 

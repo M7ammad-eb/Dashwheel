@@ -51,6 +51,25 @@ class MapTest {
     }
 
     @Test
+    fun refusalsAreForgottenOnceTheyHaveRested() {
+        val fetched = java.util.concurrent.CopyOnWriteArrayList<String>()
+        var now = 1_000_000L
+        val cache = TileCache(null, "https://tiles.test/{z}/{x}/{y}.png", 16, "test", onLoaded = {}, fetch = { url, _ -> fetched += url; null }, workers = 1, clock = { now })
+        assertNull(cache.tile(16, 1, 1))
+        waitFor("the refusal") { cache.resting() == setOf(TileKey(16, 1, 1)) }
+        // Asked again within its minute: left alone, not even queued.
+        assertNull(cache.tile(16, 1, 1))
+        assertEquals(emptyList<TileKey>(), cache.pending())
+        assertEquals(1, fetched.size)
+        // A minute on, the next ask drops it from the list rather than keeping every tile of the drive.
+        now += TileStore.RETRY_MS + 1
+        assertNull(cache.tile(16, 2, 2))
+        assertTrue(TileKey(16, 1, 1) !in cache.resting())
+        waitFor("the second refusal") { cache.resting() == setOf(TileKey(16, 2, 2)) }
+        assertEquals(2, fetched.size)
+    }
+
+    @Test
     fun tilesAreFetchedOnceKeptOnTheCardAndRefusalsRest() {
         val fetched = java.util.concurrent.CopyOnWriteArrayList<String>()
         val loaded = java.util.concurrent.atomic.AtomicInteger()
@@ -71,13 +90,15 @@ class MapTest {
         waitFor("the tile on the card") { File(tmp.root, "16/1/2.png").isFile }
         waitFor("the redraw request") { loaded.get() >= 1 }
         // A second cache over the same folder reads it from the card without fetching.
-        val again = TileCache(tmp.root, "https://tiles.test/{z}/{x}/{y}.png", 16, "test", onLoaded = {}, fetch = { _, _ -> throw AssertionError("fetched") })
-        assertNotNull(again.tile(16, 1, 2))
+        val againFetched = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val again = TileCache(tmp.root, "https://tiles.test/{z}/{x}/{y}.png", 16, "test", onLoaded = {}, fetch = { url, _ -> againFetched += url; null })
+        waitFor("the tile from the card") { again.tile(16, 1, 2) != null }
+        assertEquals(emptyList<String>(), againFetched)
         // A tile the server refuses is not asked for again at once.
         assertNull(cache.tile(16, 5, 5))
         waitFor("the refusal") { fetched.count { "/16/5/5" in it } == 1 }
-        Thread.sleep(50)
         assertNull(cache.tile(16, 5, 5))
+        assertTrue(TileKey(16, 5, 5) !in cache.pending())
         assertEquals(1, fetched.count { "/16/5/5" in it })
         // Beyond the poles there is no tile; east of the antimeridian the world wraps.
         assertNull(cache.tile(16, 0, -1))
@@ -85,6 +106,42 @@ class MapTest {
         assertEquals("https://tiles.test/1/1/0.png", cache.urlFor(TileKey(1, 1, 0)))
         cache.prefetch(listOf(TileKey(16, 1, 3)))
         waitFor("the prefetched tile") { File(tmp.root, "16/1/3.png").isFile }
+    }
+
+    @Test
+    fun aTileOnTheCardComesThroughAWorkerNotTheCaller() {
+        // Decoding a tile took the drawing thread milliseconds: it gets null now, and the redraw call once a worker has it.
+        File(tmp.root, "16/7/7.png").apply { parentFile.mkdirs(); writeBytes(png(0x112233)) }
+        val fetched = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val loaded = java.util.concurrent.atomic.AtomicInteger()
+        val cache = TileCache(tmp.root, "https://tiles.test/{z}/{x}/{y}.png", 16, "test", onLoaded = { loaded.incrementAndGet() }, fetch = { url, _ -> fetched += url; null })
+        assertNull(cache.tile(16, 7, 7))
+        waitFor("the redraw request") { loaded.get() == 1 }
+        val tile = cache.tileAtHand(16, 7, 7)
+        assertNotNull(tile)
+        assertEquals(0x112233, tile!!.getRGB(10, 10) and 0xFFFFFF)
+        assertEquals(emptyList<String>(), fetched)
+        // Asking again is a plain memory hit.
+        assertNotNull(cache.tile(16, 7, 7))
+        assertEquals(emptyList<TileKey>(), cache.pending())
+    }
+
+    @Test
+    fun theDrawingThreadsTilesGoToTheFrontOfTheQueue() {
+        // The one worker holds the first tile until told: the queue's order can be looked at meanwhile.
+        val taken = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val cache = TileCache(null, "https://tiles.test/{z}/{x}/{y}.png", 16, "test", onLoaded = {}, fetch = { _, _ -> taken.countDown(); release.await(); null }, workers = 1)
+        assertNull(cache.tile(16, 1, 1))
+        assertTrue(taken.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        cache.prefetch(listOf(TileKey(16, 2, 2), TileKey(16, 3, 3), TileKey(16, 4, 4)))
+        // Asked for by the drawing thread: moved to the front, the others keeping their order; asked again, nothing changes.
+        assertNull(cache.tile(16, 4, 4))
+        assertNull(cache.tile(16, 4, 4))
+        assertEquals(listOf(TileKey(16, 4, 4), TileKey(16, 2, 2), TileKey(16, 3, 3), TileKey(16, 1, 1)), cache.pending())
+        cache.prefetch(listOf(TileKey(16, 2, 2)))
+        assertEquals(listOf(TileKey(16, 4, 4), TileKey(16, 2, 2), TileKey(16, 3, 3), TileKey(16, 1, 1)), cache.pending())
+        release.countDown()
     }
 
     private class FakeTiles(override val zoom: Int = 16) : TileSource {

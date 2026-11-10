@@ -572,7 +572,8 @@ private fun OrbitTelemetry(env: SkinTileEnv) {
         OrbitDial(
             diameter = d,
             speedFraction = g.speedKmh?.let { it / DIAL_MAX_KMH } ?: 0f,
-            outerFraction = g.rpm?.let { it / SKIN_RPM_MAX } ?: 0f,
+            // Null with no revs: the dial then shows its plain dashed orbit, not an empty rev track.
+            outerFraction = g.rpm?.let { it / SKIN_RPM_MAX },
             active = connected,
             warn = warn,
             onClick = if (idle && !env.editing) env.onConnectObd else null,
@@ -681,8 +682,11 @@ private fun OrbitDial(
     val light = DashColors.Light
     val knobFill = if (light) Color.White else DashColors.TextPrimary
     val muted = DashColors.Muted
-    val value = animateFloatAsState(speedFraction.coerceIn(0f, 1f), tween(500), label = "dial speed")
-    val outer = animateFloatAsState((outerFraction ?: 0f).coerceIn(0f, 1f), tween(500), label = "dial rpm")
+    // Tweened only on the page shown: the revs come several times a second, and a neighbouring
+    // page the pager keeps composed would redraw its dial at frame rate for nobody.
+    val onPage = LocalPageActive.current
+    val value = if (onPage) animateFloatAsState(speedFraction.coerceIn(0f, 1f), tween(500), label = "dial speed") else rememberUpdatedState(speedFraction.coerceIn(0f, 1f))
+    val outer = if (onPage) animateFloatAsState((outerFraction ?: 0f).coerceIn(0f, 1f), tween(500), label = "dial rpm") else rememberUpdatedState((outerFraction ?: 0f).coerceIn(0f, 1f))
     val showOuter = outerFraction != null
     val connectLabel = stringResource(R.string.orbit_connect_obd)
     Box(
@@ -798,7 +802,7 @@ private fun OrbitGaugeBubble(
     dimmed: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val level = animateFloatAsState(fraction.coerceIn(0f, 1f), tween(600), label = "satellite")
+    val level = if (LocalPageActive.current) animateFloatAsState(fraction.coerceIn(0f, 1f), tween(600), label = "satellite") else rememberUpdatedState(fraction.coerceIn(0f, 1f))
     val light = DashColors.Light
     Box(
         modifier = modifier

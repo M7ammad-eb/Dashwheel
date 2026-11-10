@@ -1,5 +1,6 @@
 package com.openauto.dash
 
+import android.os.SystemClock
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -503,8 +504,10 @@ internal fun rememberNowView(pending: PendingActionState): NowView {
 private class NowStepper {
     private var shown: NowShown? = null
 
+    // A clock GPS cannot set: the hold and paging times are differences, and the unit's
+    // time jumps by months when a cold-started unit gets its fix.
     fun step(cards: List<NowCard>, moving: Boolean, page: Int): NowKind =
-        NowRules.step(shown, cards, System.currentTimeMillis(), moving, page).also { shown = it }.kind
+        NowRules.step(shown, cards, SystemClock.elapsedRealtime(), moving, page).also { shown = it }.kind
 }
 
 /**

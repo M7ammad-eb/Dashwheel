@@ -500,7 +500,19 @@ private val SETTINGS_INDEX: List<SettingsEntry> by lazy {
         SettingsEntry(R.string.explore_title, SettingsTab.GENERAL, listOf(Deep.LAB, Deep.EXPLORER), detail = R.string.explore_settings_detail),
         SettingsEntry(R.string.dead_strip_title, SettingsTab.GENERAL, listOf(Deep.LAB), detail = R.string.dead_strip_detail),
         SettingsEntry(R.string.settings_sleep_title, SettingsTab.GENERAL, listOf(Deep.LAB), offered = { CarPower.available }),
-        SettingsEntry(R.string.settings_log_title, SettingsTab.GENERAL, listOf(Deep.LAB))
+        SettingsEntry(R.string.settings_log_title, SettingsTab.GENERAL, listOf(Deep.LAB)),
+
+        // Rows the search missed (usability reviews 10-29 and 11-09): the OBD sheet's switches, the About sheet's rows.
+        SettingsEntry(R.string.settings_obd_auto, SettingsTab.DIAGNOSTICS, listOf(Deep.OBD), detail = R.string.settings_obd_auto_off),
+        // The source switch shows with Deep OBD installed or chosen; without a context here, chosen is what can be told.
+        SettingsEntry(R.string.settings_obd_source_label, SettingsTab.DIAGNOSTICS, listOf(Deep.OBD), offered = { DeepObdSource.source.value == ObdSource.DEEPOBD }),
+        SettingsEntry(R.string.alert_kind_gemini_title, SettingsTab.ALERTS),
+        SettingsEntry(R.string.report_title, SettingsTab.GENERAL, listOf(Deep.ABOUT), detail = R.string.report_row_detail),
+        SettingsEntry(R.string.settings_beta_updates, SettingsTab.GENERAL, listOf(Deep.ABOUT), detail = R.string.settings_beta_updates_detail, offered = full),
+        SettingsEntry(R.string.update_previous, SettingsTab.GENERAL, listOf(Deep.ABOUT), detail = R.string.update_previous_detail, offered = full),
+        SettingsEntry(R.string.about_project, SettingsTab.GENERAL, listOf(Deep.ABOUT), detail = R.string.about_project_detail),
+        SettingsEntry(R.string.about_telegram, SettingsTab.GENERAL, listOf(Deep.ABOUT), detail = R.string.about_telegram_detail),
+        SettingsEntry(R.string.about_kofi, SettingsTab.GENERAL, listOf(Deep.ABOUT))
     )
 }
 
@@ -536,7 +548,10 @@ private fun Deep.titleRes(): Int = when (this) {
 
 /** Lower case without accents, so "eco" finds "Éco" and "volumen" finds "Volumen". */
 private fun fold(text: String): String =
-    Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "").lowercase()
+    Normalizer.normalize(text, Normalizer.Form.NFD).replace(MARKS, "").lowercase()
+
+// Compiled once: fold() runs for every entry's title, pages and detail at each typed character.
+private val MARKS = Regex("\\p{Mn}+")
 
 private class Found(val entry: SettingsEntry, val title: String, val path: String, val rank: Int)
 

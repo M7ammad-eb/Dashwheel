@@ -16,12 +16,21 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# A second push to the same branch while its build runs cancels the first: only
+# the newest commit's result matters.
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   checks:
     name: Lint and unit tests
+    # A pull request from a branch of this repository is already checked by its
+    # push; only a fork's pull request has nothing else running for it.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
 
     steps:
@@ -132,7 +141,17 @@ jobs:
       # changes nothing; only rewriting main's history could lower it.
       - name: Work out the version
         run: |
-          code=$(( $(git rev-list --count --first-parent HEAD) + 200 ))
+          # A branch counts only up to where it left main: its test build then
+          # carries a number the next build of main (one more commit) beats, so
+          # Android lets that release install over it. Counting the branch's own
+          # commits gave a number main could not reach for as many merges.
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            base=HEAD
+          else
+            git fetch --no-tags --depth=1 origin main >/dev/null 2>&1 || true
+            base=$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD)
+          fi
+          code=$(( $(git rev-list --count --first-parent "$base") + 200 ))
           echo "VERSION_CODE=$code" >> "$GITHUB_ENV"
           echo "VERSION_NAME=1.0.$code" >> "$GITHUB_ENV"
           echo "Version 1.0.$code"
@@ -279,5 +298,6 @@ jobs:
             dashwheel-companion.apk
           body: |
             Test build of branch `${{ github.ref_name }}` at ${{ github.sha }}.
-            Signed with the release key, so it installs over the current version; a later
-            release from main will update over it again. No updater channel offers it.
+            Signed with the release key, so it installs over the current version; its
+            number is that of the main it branched from, so the next release from main
+            updates over it again. No updater channel offers it.

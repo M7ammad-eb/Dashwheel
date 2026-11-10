@@ -99,7 +99,7 @@ object UnitLight {
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
         if (isNight) { _night.value = v; p.putInt(KEY_NIGHT, v) } else { _day.value = v; p.putInt(KEY_DAY, v) }
         p.apply()
-        scope.launch { write(context.applicationContext, v) }
+        scope.launch { write(context.applicationContext, v, fromTap = true) }
     }
 
     fun setFollow(context: Context, on: Boolean) {
@@ -108,9 +108,17 @@ object UnitLight {
         if (on) scope.launch { apply(context.applicationContext) }
     }
 
-    private suspend fun apply(context: Context) = write(context, current())
+    private suspend fun apply(context: Context) = write(context, current(), fromTap = false)
 
-    private suspend fun write(context: Context, level: Int) {
+    /** The follow collector found no way to write: said once, not at every headlight change. */
+    private var gaveUp = false
+
+    /**
+     * Writes [level] to the screen. Without the settings permission or a shell,
+     * Android's permission page is opened only for a driver's tap ([fromTap]):
+     * the headlights collector runs while driving and must not cover the dashboard.
+     */
+    private suspend fun write(context: Context, level: Int, fromTap: Boolean) {
         val cr = context.contentResolver
         val direct = Settings.System.canWrite(context) && runCatching {
             Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
@@ -120,6 +128,11 @@ object UnitLight {
         try {
             DockShell.shell(context, "settings put system screen_brightness_mode 0; settings put system screen_brightness $level")
         } catch (e: Exception) {
+            if (!fromTap) {
+                if (!gaveUp) Log.w(TAG, "can't set the screen light: ${e.message}; following the headlights waits for the settings permission")
+                gaveUp = true
+                return
+            }
             Log.w(TAG, "can't set the screen light: ${e.message}")
             // No shell on this unit: Android's own "modify system settings" once, then it is written directly.
             runCatching {

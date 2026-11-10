@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -165,6 +166,7 @@ class CarLiveModelTest {
     fun modelsOnDiskAreMadeLive() {
         val dir = File("build/carmodel-in")
         val files = dir.listFiles { f -> f.name.endsWith(".glb") }.orEmpty()
+        assumeTrue("no models in $dir", files.isNotEmpty())
         val out = File("build/carmodel-out").apply { mkdirs() }
         for (f in files) {
             // As the phone does: turned around when the nose looks backwards.

@@ -116,6 +116,8 @@ object DisplayLink {
     private const val SEND_STALL_MS = 3_000L
     /** One dial at the known addresses: cheap, and the display is found soon after its Wi-Fi joins. */
     private const val RETRY_MS = 2_000L
+    /** A display that never answers (none in the car today) slows the dials down to this; a drop or a network change starts over. */
+    private const val RETRY_MAX_MS = 30_000L
     /** Messages waiting to go (a mode, the words, the readings): never behind the video, see [control]. */
     private const val CONTROL_QUEUE = 64
     /** Video frames queue here, a few at most ([VIDEO_BACKLOG]); the rest are dropped (see [sendVideo]). */
@@ -193,7 +195,8 @@ object DisplayLink {
     private val announced = ConcurrentHashMap.newKeySet<String>()
     /** The address a display's beacon came from last. */
     @Volatile private var heardAt: String? = null
-    private var lastProbeAt = 0L
+    /** When the hotspot was last scanned (elapsed realtime). */
+    private var lastProbeAt = Long.MIN_VALUE / 2
     private var wifiLock: WifiManager.WifiLock? = null
 
     val connected: Boolean get() = _state.value is DisplayLinkState.Connected
@@ -293,27 +296,38 @@ object DisplayLink {
 
     private suspend fun run(context: Context) {
         var last = wake.value
+        // Rounds in a row where no display linked.
+        var misses = 0
         while (scope.isActive) {
             val displays = _displays.value
+            var linked = false
             if (displays.isNotEmpty()) {
                 val tried = mutableSetOf<String>()
                 for (address in quickAddresses(context)) {
                     if (!tried.add(address)) continue
-                    if (dialAt(context, address, displays)) break
+                    if (dialAt(context, address, displays)) { linked = true; break }
                 }
-                if (session == null && System.currentTimeMillis() - lastProbeAt > PROBE_EVERY_MS) {
-                    lastProbeAt = System.currentTimeMillis()
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (session == null && now - lastProbeAt > PROBE_EVERY_MS) {
+                    lastProbeAt = now
                     for (address in probe(context)) {
                         if (!tried.add(address)) continue
-                        if (dialAt(context, address, displays)) break
+                        if (dialAt(context, address, displays)) { linked = true; break }
                     }
                 }
             }
+            // A link that just ended is dialled again at once; one that never comes, less and less often.
+            misses = if (linked) 0 else misses + 1
             refreshIdleState()
-            withTimeoutOrNull(RETRY_MS) { wake.first { it != last } }
+            // A network change or a display's beacon: look again at once, and quickly.
+            if (withTimeoutOrNull(retryDelay(misses)) { wake.first { it != last } } != null) misses = 0
             last = wake.value
         }
     }
+
+    /** Waits between dials: 2 s, then doubling while no display answers, up to [RETRY_MAX_MS]. */
+    internal fun retryDelay(misses: Int): Long =
+        if (misses <= 1) RETRY_MS else (RETRY_MS shl (misses - 1).coerceAtMost(4)).coerceAtMost(RETRY_MAX_MS)
 
     /**
      * The Pi on the cable when this unit has an address from it, then where its beacon was

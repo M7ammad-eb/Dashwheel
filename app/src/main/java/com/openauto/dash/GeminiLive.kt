@@ -116,6 +116,8 @@ internal object GeminiLive {
     private const val CURTAIN_MAX_MS = 4_000L
     /** And stays a moment more, while the unit draws Gemini where it now is. */
     private const val CURTAIN_AFTER_MS = 200L
+    /** A tap made before the shell probe answered waits this long for it; then Gemini opens as without root. */
+    private const val ROOT_WAIT_MS = 10_000L
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var started = false
     private var window: AlertWindow? = null
@@ -123,6 +125,8 @@ internal object GeminiLive {
     private var shown: AlertStyle? = null
     private var starting: Job? = null
     private var ticking: Job? = null
+    /** Counts the taps that open Live: the shell probe's answer to an earlier one must not open it over a later. */
+    private var tap = 0
 
     private val _active = MutableStateFlow(false)
     /** A conversation is open: the bar's button turns into its end button. */
@@ -215,11 +219,23 @@ internal object GeminiLive {
             HandsFree.say(app, R.string.ai_gemini_live_missing)
             return
         }
-        // This runs on a tap, on the main thread: the shell probe's answer when it has one
-        // (a "no" would otherwise spawn su and wait up to its timeout on every tap).
+        // This runs on a tap, on the main thread: the shell probe's answer, never `su` itself
+        // (a "no" would spawn it and wait up to its timeout on every tap, and a Magisk prompt
+        // held the launcher until it was answered). Before the probe has answered, the tap
+        // waits for it off the main thread and comes back here, unless a newer tap or an open
+        // conversation has overtaken it.
+        val mine = ++tap
         val root = when (PrivilegedShell.access.value) {
             PrivilegedShell.Access.ROOT -> true
-            PrivilegedShell.Access.UNKNOWN -> SystemInstaller.isRootAvailable()
+            PrivilegedShell.Access.UNKNOWN -> {
+                PrivilegedShell.probe()
+                scope.launch {
+                    val known = withTimeoutOrNull(ROOT_WAIT_MS) { PrivilegedShell.access.first { it != PrivilegedShell.Access.UNKNOWN } }
+                    if (mine != tap || _active.value) return@launch
+                    if (known != null) open(app) else fullScreen(app, root = false)
+                }
+                return
+            }
             else -> false
         }
         if (!root || !EmbeddedApp.allowed(app) || !window(app).canShow()) {

@@ -99,7 +99,11 @@ internal fun SetupBackupRows() {
                         withContext(NonCancellable) {
                             withContext(Dispatchers.IO) { SetupBackup.restore(context, text) }
                                 .onSuccess { SetupBackup.restart(context) }
-                                .onFailure { Toast.makeText(context, failed, Toast.LENGTH_SHORT).show() }
+                                .onFailure {
+                                    Toast.makeText(context, failed, Toast.LENGTH_SHORT).show()
+                                    // Half written: the restart puts every part on what is on disk now.
+                                    if (it is SetupBackup.PartlyRestored) SetupBackup.restart(context)
+                                }
                         }
                     }
                 }) { Text(stringResource(R.string.settings_backup_confirm), color = DashColors.Critical) }

@@ -6,6 +6,7 @@ import android.util.Log
 import java.io.IOException
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
@@ -82,18 +83,22 @@ internal object RootShell {
         check(Edition.full) { SystemInstaller.NO_ROOT_PLAY }
         val tell = "echo \"$PID \$\$\" >&2"
         val process = Runtime.getRuntime().exec(if (cmd != null) arrayOf("su", "-c", "$tell; $cmd") else arrayOf("su"))
-        // One builder per stream: the two readers run concurrently.
+        // One builder per stream: the two readers run concurrently. Each is
+        // appended under its lock, and not once the result is taken (done): a
+        // grandchild holding a pipe keeps its reader alive past the join below.
         val out = StringBuilder()
         val err = StringBuilder()
+        val done = AtomicBoolean(false)
+        fun StringBuilder.put(text: String) = synchronized(this) { if (!done.get()) append(text) }
         val pid = AtomicInteger(0)
-        val reader = Thread { runCatching { out.append(process.inputStream.bufferedReader().readText()) } }
+        val reader = Thread { runCatching { out.put(process.inputStream.bufferedReader().readText()) } }
         val errReader = Thread {
             runCatching {
                 val r = process.errorStream.bufferedReader()
                 val first = r.readLine() ?: return@runCatching
                 val told = first.takeIf { it.startsWith(PID) }?.substringAfter(' ')?.trim()?.toIntOrNull()
-                if (told != null) pid.set(told) else err.append(first).append('\n')
-                err.append(r.readText())
+                if (told != null) pid.set(told) else err.put(first + "\n")
+                err.put(r.readText())
             }
         }
         reader.start(); errReader.start()
@@ -110,7 +115,8 @@ internal object RootShell {
                 throw IllegalStateException("su timed out")
             }
             reader.join(2000); errReader.join(2000)
-            return Output(process.exitValue(), out.toString(), err.toString())
+            done.set(true)
+            return Output(process.exitValue(), synchronized(out) { out.toString() }, synchronized(err) { err.toString() })
         } finally {
             // A command that left a child holding the pipes would keep both
             // readers (and the streams) waiting for good: closing ends them.
@@ -120,8 +126,46 @@ internal object RootShell {
         }
     }
 
-    /** Marks the root shell's pid on its stderr, see [su]. */
+    /** Marks the root shell's pid on its stderr, see [su] (on stdout for [stream]). */
     private const val PID = "__DW_PID__"
+
+    /**
+     * `su -c [cmd]` left running for its caller to read line by line
+     * ([Stream.reader]): a sniff of `getevent` or `logcat` that ends when its
+     * reader stops. The root shell tells its pid first ([PID], on stdout, the
+     * one stream read; [Stream.readPid] takes it off), so [Stream.kill] ends
+     * the command itself: destroying the `su` client alone left `getevent`
+     * running until its next key press.
+     */
+    fun stream(cmd: String): Stream {
+        check(Edition.full) { SystemInstaller.NO_ROOT_PLAY }
+        val tell = "echo \"$PID \$\$\""
+        return Stream(Runtime.getRuntime().exec(arrayOf("su", "-c", "$tell; $cmd")))
+    }
+
+    class Stream internal constructor(private val process: Process) {
+        val reader = process.inputStream.bufferedReader()
+
+        /** The root shell's pid, once [readPid] saw its line; null while unread, or when su refused (no line at all). */
+        @Volatile private var pid: Int? = null
+
+        /** Takes the pid line off the output: the first line, before anything the command prints. */
+        fun readPid() {
+            pid = reader.readLine()?.takeIf { it.startsWith(PID) }?.substringAfter(' ')?.trim()?.toIntOrNull()
+        }
+
+        /**
+         * Ends the command with everything it started ([killTree]), then the `su`
+         * client. The stream is closed under the reader (not the reader itself:
+         * a blocked readLine holds its lock), so a read under way ends in an IOException.
+         */
+        fun kill() {
+            pid?.let { killTree(it) }
+            runCatching { process.inputStream.close() }
+            runCatching { process.destroy() }
+            runCatching { process.destroyForcibly() }
+        }
+    }
 
     /**
      * Kills [pid] and everything it started, children first, from a root

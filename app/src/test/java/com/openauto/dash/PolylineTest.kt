@@ -26,6 +26,15 @@ class PolylineTest {
     }
 
     @Test
+    fun aCorruptStringEndsWithThePointsReadSoFar_neverGarbage() {
+        // Twenty continuation chunks never close a number: a shift past 64 bits used to wrap round.
+        val good = Polyline.decode("_p~iF~ps|U")
+        assertEquals(1, good.size)
+        val corrupt = "_p~iF~ps|U" + "~".repeat(20)
+        assertEquals(good, Polyline.decode(corrupt))
+    }
+
+    @Test
     fun aLongRouteIsThinnedForTheLink() {
         val long = (0 until 5_000).map { 48.0 + it * 1e-4 to 2.0 + it * 1e-4 }
         val message = ClusterRouteFeed.message(long)

@@ -1,6 +1,7 @@
 package com.openauto.dash.display
 
 import com.openauto.dash.link.ClusterState
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.awt.image.BufferedImage
 import java.io.File
@@ -15,7 +16,7 @@ import javax.imageio.ImageIO
 class RealMapPreview {
     @Test
     fun render() {
-        val dir = System.getenv("REAL_TILES")?.let(::File) ?: return
+        val dir = System.getenv("REAL_TILES")?.let(::File) ?: run { assumeTrue("REAL_TILES not set", false); return }
         System.setProperty("java.awt.headless", "true")
         val missing = sortedSetOf<String>()
         val raster = object : TileSource {

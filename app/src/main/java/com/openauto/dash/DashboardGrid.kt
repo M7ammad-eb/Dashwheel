@@ -716,10 +716,18 @@ internal fun TileContent(
     /** Grid only: grow this tile to at least the given pixel size (a docked window's minimum). */
     onFitToWindow: ((Int, Int) -> Unit)? = null
 ) {
-    val env = remember(editing, appsByPackage, media, mediaController, hasMediaAccess, context, obdConnection, onConnectObd, onPickDevice, onLaunchApp, onEditLaunchBar) {
+    // The callbacks the dashboard hands down are new objects at every root recomposition (once a
+    // minute, every swipe), which made this env new for every tile on every composed page. Built
+    // over holders that follow the latest callbacks, it stays the same object while nothing a tile
+    // reads has changed, so the tiles can skip.
+    val latestConnect = rememberUpdatedState(onConnectObd)
+    val latestPick = rememberUpdatedState(onPickDevice)
+    val latestLaunch = rememberUpdatedState(onLaunchApp)
+    val latestEditBar = rememberUpdatedState(onEditLaunchBar)
+    val env = remember(editing, appsByPackage, media, mediaController, hasMediaAccess, context, obdConnection) {
         SkinTileEnv(
             editing, appsByPackage, media, mediaController, hasMediaAccess, context,
-            obdConnection, onConnectObd, onPickDevice, onLaunchApp, onEditLaunchBar
+            obdConnection, { latestConnect.value() }, { latestPick.value() }, { latestLaunch.value(it) }, { latestEditBar.value() }
         )
     }
     // A tile's own design beats the skin; its standard look is this same

@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -106,9 +107,12 @@ internal fun CarProblemsMap(
     }
     val numbers = rememberTextMeasurer(cacheSize = 16)
 
-    val pulse by rememberInfiniteTransition(label = "problems").animateFloat(
-        0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart), label = "pulse"
-    )
+    // The rings pulse only on the page shown: the whole canvas redraws with them at frame rate.
+    val pulse by if (LocalPageActive.current) {
+        rememberInfiniteTransition(label = "problems").animateFloat(
+            0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart), label = "pulse"
+        )
+    } else rememberUpdatedState(0f)
     val stop = DashColors.Critical
     val garage = DashColors.Warning
     val info = DashColors.TextSecondary

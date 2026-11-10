@@ -1,5 +1,7 @@
 package com.openauto.dash
 
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableIntStateOf
 import com.openauto.dash.vehicle.any
 import com.openauto.dash.vehicle.rememberPanelGauges
 import com.openauto.dash.vehicle.K
@@ -173,7 +175,6 @@ internal fun ModernNavigation(env: SkinTileEnv) {
     val context = env.context
     val access = env.hasMediaAccess
     val active = access && nav.active
-    if (!nav.active) TripStart.note(false, null)
     val open = { if (access) openNavigationApp(context, nav) else CarMediaController.openNotificationAccessSettings(context) }
     ModernCard(
         env,
@@ -280,24 +281,6 @@ private fun NavHead(nav: NavState, access: Boolean, active: Boolean, w: Dp, h: D
     }
 }
 
-/**
- * The longest time left seen for the route on screen, so the timeline can
- * tell how much of the trip is behind. A longer time (a new route, a detour)
- * starts it again; it is forgotten when the route ends.
- */
-private object TripStart {
-    private var minutes: Int? = null
-
-    fun note(active: Boolean, remaining: Int?): Int? {
-        if (!active) {
-            minutes = null
-            return null
-        }
-        val m = minutes
-        if (remaining != null && (m == null || remaining > m)) minutes = remaining
-        return minutes
-    }
-}
 
 /**
  * The arrival timeline: the arrival time, the trip as a bar glowing blue up
@@ -312,8 +295,14 @@ private fun ArrivalStrip(nav: NavState, modifier: Modifier) {
     val remaining = etaMinutes(nav.eta)
     val arrival = arrivalMs(nav.eta, clock)
     val km = CareRules.remainingKm(nav.eta)
-    val start = TripStart.note(true, remaining)
-    val progress = if (remaining != null && start != null && start > 0) (1f - remaining.toFloat() / start).coerceIn(0f, 1f) else 0f
+    // The longest time left seen for this route, so the timeline tells how much of the trip is
+    // behind: a longer time (a detour) grows it, a destination handed off starts it again, and it
+    // goes with the strip rather than living in a process global that outlasted the route.
+    val handed by NavHandoff.handedOff.collectAsState()
+    val longest = remember(nav.packageName, handed?.at) { mutableIntStateOf(0) }
+    val start = max(longest.intValue, remaining ?: 0)
+    SideEffect { if (start > longest.intValue) longest.intValue = start }
+    val progress = if (remaining != null && start > 0) (1f - remaining.toFloat() / start).coerceIn(0f, 1f) else 0f
     val fuel = rememberFuelToDest()
     val toGo = fuel?.toGoKm
     val dry = if (fuel != null && toGo != null && toGo > 0.0 && fuel.rangeKm < toGo) {

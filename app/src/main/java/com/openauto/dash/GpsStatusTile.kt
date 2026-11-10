@@ -66,7 +66,9 @@ internal fun GpsStatusCard(modifier: Modifier = Modifier) {
     val location by LocationFeed.location.collectAsState()
     val units by Units.current.collectAsState()
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
-    LaunchedEffect(Unit) { while (true) { now = SystemClock.elapsedRealtimeNanos(); delay(1_000) } }
+    // Not on a page off screen: the fix's age is read again when the page shows.
+    val active = LocalPageActive.current
+    LaunchedEffect(active) { if (!active) return@LaunchedEffect; while (true) { now = SystemClock.elapsedRealtimeNanos(); delay(1_000) } }
     val loc = location
     val ageS = loc?.let { ((now - it.elapsedRealtimeNanos) / 1_000_000_000L).toInt() }
     val fixed = loc != null && ageS != null && ageS < 10
@@ -85,7 +87,7 @@ internal fun GpsStatusCard(modifier: Modifier = Modifier) {
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Stat(stringResource(R.string.widgets_gps_accuracy), loc?.takeIf { it.hasAccuracy() }?.let { "± ${units.shortDistance(it.accuracy.toDouble())}" } ?: "--")
-                Stat(stringResource(R.string.widgets_gps_altitude), loc?.takeIf { it.hasAltitude() }?.let { units.shortDistance(it.altitude) } ?: "--")
+                Stat(stringResource(R.string.widgets_gps_altitude), loc?.takeIf { it.hasAltitude() }?.let { units.heightText(it.altitude) } ?: "--")
                 Stat(stringResource(R.string.widgets_gps_speed), loc?.takeIf { it.hasSpeed() }?.let { "${units.speed(it.speed * 3.6f)} ${units.speedUnit}" } ?: "--")
                 Stat(stringResource(R.string.widgets_gps_age), ageS?.let { stringResource(R.string.widgets_gps_seconds, it) } ?: "--")
             }
@@ -115,7 +117,7 @@ internal fun gpsStatusFace(): WidgetFace {
         caption = loc?.takeIf { it.hasAccuracy() }?.let { "± ${units.shortDistance(it.accuracy.toDouble())}" } ?: stringResource(R.string.widgets_gps_no_fix),
         fraction = (used / 12f).coerceIn(0f, 1f),
         stats = listOf(
-            FaceStat(stringResource(R.string.widgets_gps_altitude), loc?.takeIf { it.hasAltitude() }?.let { units.shortDistance(it.altitude) } ?: "--"),
+            FaceStat(stringResource(R.string.widgets_gps_altitude), loc?.takeIf { it.hasAltitude() }?.let { units.heightText(it.altitude) } ?: "--"),
             FaceStat(stringResource(R.string.widgets_gps_speed), loc?.takeIf { it.hasSpeed() }?.let { "${units.speed(it.speed * 3.6f)}" } ?: "--")
         )
     )

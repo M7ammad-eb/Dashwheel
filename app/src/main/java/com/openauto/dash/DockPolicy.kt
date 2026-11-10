@@ -5,6 +5,10 @@ package com.openauto.dash
  * it sees and what it remembers. [PipAnchor.track] only carries out the
  * resulting [Step]; every rule about reopening, giving up, raising and placing
  * a window lives here, where it can be unit-tested without a device.
+ *
+ * The `now` handed to [onMissing] and [onPresent], and the times it is compared
+ * with, are [android.os.SystemClock.elapsedRealtime] ms: the unit's clock is set
+ * by GPS or NTP mid-drive, and a step would end a cooldown at once or freeze it.
  */
 object DockPolicy {
 

@@ -107,17 +107,21 @@ internal object KeyBroadcastSource : KeySource {
     private val _listening = MutableStateFlow(false)
     override val listening: StateFlow<Boolean> = _listening
     private var onKey: ((UnitKeyPress) -> Unit)? = null
+    private var app: Context? = null
 
     override fun start(context: Context, onKey: (UnitKeyPress) -> Unit) {
         if (this.onKey != null) return
         this.onKey = onKey
         val filter = IntentFilter().apply { KeyBroadcasts.ACTIONS.forEach(::addAction) }
-        ContextCompat.registerReceiver(context.applicationContext, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        app = context.applicationContext.also { ContextCompat.registerReceiver(it, receiver, filter, ContextCompat.RECEIVER_EXPORTED) }
         _listening.value = true
     }
 
     override fun stop() {
         onKey = null
+        // Left registered, the next start would register a second one and hear each key twice.
+        app?.let { runCatching { it.unregisterReceiver(receiver) } }
+        app = null
         _listening.value = false
     }
 

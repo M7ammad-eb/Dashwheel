@@ -952,7 +952,7 @@ private fun ClayRange(item: DashboardItem, env: SkinTileEnv) {
             ClayGroove(tint, if (low) DashColors.Warning else tint.ink, fuel.percent / 100f, Modifier.fillMaxWidth().height(grooveH))
             if (showLine) {
                 ClayLine(
-                    String.format(Locale.getDefault(), "%s%.0f L", if (fuel.percentEstimated) "≈ " else "", fuel.liters),
+                    (if (fuel.percentEstimated) "≈ " else "") + LocalUnits.current.volumeText(fuel.liters),
                     clayText(lineSize, DashColors.TextSecondary, FontWeight.SemiBold)
                 )
             }

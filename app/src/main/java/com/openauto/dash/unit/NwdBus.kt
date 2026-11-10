@@ -41,11 +41,13 @@ internal object NwdBus : VehicleBusSource {
 
     private var out: Publisher? = null
     private var job: Job? = null
+    private var app: Context? = null
 
     override fun start(context: Context, publisher: Publisher, raw: (String, String) -> Unit) {
         if (out != null) return
         out = publisher
         val app = context.applicationContext
+        this.app = app
         ContextCompat.registerReceiver(app, receiver, IntentFilter(NwdProtocol.ACTION_VOLTAGE).apply { addAction(NwdProtocol.ACTION_STATUSBAR_STRING) }, ContextCompat.RECEIVER_EXPORTED)
         _listening.value = true
         job = scope.launch {
@@ -85,6 +87,10 @@ internal object NwdBus : VehicleBusSource {
     override fun stop() {
         job?.cancel()
         job = null
+        // Cleared so a later start registers and polls again rather than returning at once.
+        app?.let { runCatching { it.unregisterReceiver(receiver) } }
+        app = null
+        out = null
         _listening.value = false
     }
 

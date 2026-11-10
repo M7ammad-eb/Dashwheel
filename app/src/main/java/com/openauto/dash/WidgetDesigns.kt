@@ -117,7 +117,8 @@ enum class WidgetDesign(
     VOLUME_KNOB(R.string.design_volume_knob, R.string.design_volume_knob_desc, null, FaceLookKind.THEME, setOf(BuiltinKind.AUDIO, BuiltinKind.SCREEN_LIGHT, BuiltinKind.UNIT_LIGHT)),
     LEVEL_METER(R.string.design_level_meter, R.string.design_level_meter_desc, null, FaceLookKind.THEME, setOf(BuiltinKind.AUDIO, BuiltinKind.GPS_STATUS, BuiltinKind.WIFI_NETWORKS)),
     FILTER_CELLS(R.string.design_filter_cells, R.string.design_filter_cells_desc, null, FaceLookKind.THEME, setOf(BuiltinKind.FILTER_CARE)),
-    HOURGLASS(R.string.design_hourglass, R.string.design_hourglass_desc, null, FaceLookKind.THEME, setOf(BuiltinKind.BREAK_TIMER, BuiltinKind.PARKING_TIMER)),
+    // Not the parking timer: it has no fraction (the set time is not kept), so the sand never ran.
+    HOURGLASS(R.string.design_hourglass, R.string.design_hourglass_desc, null, FaceLookKind.THEME, setOf(BuiltinKind.BREAK_TIMER)),
     LEAF(R.string.design_leaf, R.string.design_leaf_desc, null, FaceLookKind.THEME, setOf(BuiltinKind.ECO_DRIVE)),
     TYRE_MAP(R.string.design_tyre_map, R.string.design_tyre_map_desc, null, FaceLookKind.THEME, setOf(BuiltinKind.TYRES)),
     CAR_OUTLINE(R.string.design_car_outline, R.string.design_car_outline_desc, null, FaceLookKind.THEME, setOf(BuiltinKind.CAR_STATUS, BuiltinKind.OBD_ALL, BuiltinKind.TELEMETRY, BuiltinKind.DOORS)),

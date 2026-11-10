@@ -33,8 +33,9 @@ object McuFeed {
     private const val TX_SEND = 29
     /** Head unit → MCU: bytes for the CAN box behind it, as the car app sends its questions. */
     internal const val CMD_TO_CAN = 0x40
-    /** The firmware's service restarts: listen again after this. */
+    /** The firmware's service restarts: listen again after this, waiting longer each time it isn't back. */
     private const val RETRY_MS = 2_000L
+    private const val RETRY_MAX_MS = 60_000L
 
     // Commands from the MCU (QF_Framework's McuConstant).
     internal const val CMD_HEADLIGHT = 34
@@ -50,6 +51,7 @@ object McuFeed {
     private val worker: Handler by lazy { Handler(HandlerThread("mcu-feed").apply { start() }.looper) }
     private var appContext: Context? = null
     private var service: IBinder? = null
+    private var retryMs = RETRY_MS
 
     private val _listening = MutableStateFlow(false)
     /** The MCU service is being listened to: [McuReader] needs no root logcat then. */
@@ -77,7 +79,7 @@ object McuFeed {
         service = null
         _listening.value = false
         McuReader.mcuStopped()
-        main.postDelayed({ register() }, RETRY_MS)
+        retryLater()
     }
 
     fun start(context: Context) {
@@ -89,7 +91,7 @@ object McuFeed {
 
     private fun register() {
         val app = appContext ?: return
-        val binder = serviceBinder() ?: return
+        val binder = serviceBinder() ?: run { retryLater(); return }
         val data = Parcel.obtain()
         val reply = Parcel.obtain()
         try {
@@ -100,14 +102,22 @@ object McuFeed {
             reply.readException()
             binder.linkToDeath(died, 0)
             service = binder
+            retryMs = RETRY_MS
             _listening.value = true
             Log.i(TAG, "listening to the MCU")
         } catch (e: Exception) {
             Log.w(TAG, "could not listen to the MCU", e)
+            retryLater()
         } finally {
             data.recycle()
             reply.recycle()
         }
+    }
+
+    /** The service isn't there or refused: once more later, each wait twice the last up to [RETRY_MAX_MS]. */
+    private fun retryLater() {
+        main.postDelayed({ register() }, retryMs)
+        retryMs = (retryMs * 2).coerceAtMost(RETRY_MAX_MS)
     }
 
     /** One message from the MCU, on the feed's own thread. */

@@ -9,9 +9,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.LongState
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 /**
  * The companion's look: the launcher's night-drive colours (deep navy, its
@@ -66,6 +71,24 @@ private val shapes = Shapes(
 @Composable
 internal fun CompanionTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme, shapes = shapes, content = content)
+}
+
+/**
+ * The wall clock, read again at each [stepMs] boundary: for what is said
+ * relative to now ("50 min ago", "Today"), which nothing else recomposes.
+ * The head unit's ([SkinKit]) without its page gate: the phone has no pages.
+ */
+@Composable
+internal fun rememberWallClock(stepMs: Long): LongState {
+    val now = remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(stepMs) {
+        now.longValue = System.currentTimeMillis()
+        while (true) {
+            delay(stepMs - System.currentTimeMillis() % stepMs)
+            now.longValue = System.currentTimeMillis()
+        }
+    }
+    return now
 }
 
 /** The companion's card: one raised surface, no border, large corners. */

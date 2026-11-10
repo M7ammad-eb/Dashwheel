@@ -125,13 +125,14 @@ internal object VehicleMonitor {
                 .collectLatest { any ->
                     if (!any) {
                         // Told once that the readings are gone: the window empties, as at a gap.
-                        BatteryWatch.feed(null, null, false, System.currentTimeMillis())
+                        BatteryWatch.feed(null, null, false, SystemClock.elapsedRealtime())
                         return@collectLatest
                     }
                     while (true) {
                         delay(BATTERY_LOOK_MS)
                         val g = gaugesNow(listOf(K.RPM, K.BATTERY_VOLTS))
-                        BatteryWatch.feed(g.rpm, g.voltage, g.voltsTrusted, System.currentTimeMillis())
+                        // A clock GPS cannot set mid-drive: the judge measures its 30 s window as differences.
+                        BatteryWatch.feed(g.rpm, g.voltage, g.voltsTrusted, SystemClock.elapsedRealtime())
                     }
                 }
         } finally {

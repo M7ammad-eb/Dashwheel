@@ -4,7 +4,10 @@ import android.content.Context
 import android.location.Location
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -90,40 +93,49 @@ internal object ShadowRoute {
         return current
     }
 
-    private suspend fun follow(context: Context, target: NavHandoff.Target) {
+    private suspend fun follow(context: Context, target: NavHandoff.Target) = coroutineScope {
         var plan: Plan? = null
         var lastRequest = 0L
         var failures = 0
         var offSince = 0L
+        // The route request runs beside the fixes, not inside their collector: a
+        // fix a second cancelled a request inside collectLatest before any router
+        // answered, so a slow answer never landed. Its answer is taken at the next fix.
+        var request: Deferred<Plan?>? = null
         val dest = resolve(target) ?: run {
             Log.i(TAG, "no position for ${target.name}: no shadow route")
-            return
+            return@coroutineScope
         }
-        LocationFeed.location.filterNotNull().collectLatest { here ->
+        LocationFeed.location.filterNotNull().collect { here ->
             val now = System.currentTimeMillis()
+            request?.takeIf { it.isCompleted }?.let { done ->
+                request = null
+                val fresh = runCatching { done.getCompleted() }.getOrNull()
+                failures = if (fresh == null) failures + 1 else 0
+                if (fresh != null) {
+                    Log.i(TAG, (if (plan == null) "route" else "new route") + " to ${target.name}: ${fresh.progress.lengthM.toInt()} m, ${fresh.steps.size} turns")
+                    plan = fresh
+                    offSince = 0L
+                    _route.value = fresh.progress.points
+                }
+            }
             val current = plan
             val fix = current?.progress?.locate(here.latitude, here.longitude)
             val off = fix != null && fix.offM > OFF_ROUTE_M
             if (off) { if (offSince == 0L) offSince = now } else offSince = 0L
             val stale = off && now - offSince > OFF_ROUTE_MS
-            if ((current == null || stale) && now - lastRequest > Backoff.doubling(REROUTE_GAP_MS, REROUTE_GAP_MAX_MS, failures)) {
+            if ((current == null || stale) && request == null && now - lastRequest > Backoff.doubling(REROUTE_GAP_MS, REROUTE_GAP_MAX_MS, failures)) {
                 lastRequest = now
-                val fresh = withContext(Dispatchers.IO) { runCatching { plan(context, here, dest) }.onFailure { Log.w(TAG, "no route: ${it.message}") }.getOrNull() }
-                failures = if (fresh == null) failures + 1 else 0
-                if (fresh != null) {
-                    plan = fresh
-                    offSince = 0L
-                    _route.value = fresh.progress.points
-                    Log.i(TAG, (if (current == null) "route" else "new route") + " to ${target.name}: ${fresh.progress.lengthM.toInt()} m, ${fresh.steps.size} turns")
-                }
+                request = async(Dispatchers.IO) { runCatching { plan(context, here, dest) }.onFailure { Log.w(TAG, "no route: ${it.message}") }.getOrNull() }
             }
-            val p = plan ?: return@collectLatest
+            val p = plan ?: return@collect
             val at = p.progress.locate(here.latitude, here.longitude)
             if (p.progress.lengthM - at.alongM < ARRIVED_M && at.offM < OFF_ROUTE_M) {
                 Log.i(TAG, "arrived at ${target.name}")
+                request?.cancel()
                 activeTarget = null
                 clear()
-                return@collectLatest
+                return@collect
             }
             _turn.value = turnAt(context, p, at)
         }

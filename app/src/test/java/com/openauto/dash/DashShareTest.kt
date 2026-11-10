@@ -51,7 +51,22 @@ class DashShareTest {
     @Test
     fun findsTheCodeInsideAMessage() {
         val code = DashShare.encode(SharedDashboard("Mine", upright = false, items = page))
-        assertNotNull(DashShare.decode("Here is my dashboard: $code enjoy!"))
+        assertEquals(SharedDashboard("Mine", upright = false, items = DashShare.shareable(page)), DashShare.decode("Here is my dashboard: $code enjoy!"))
+    }
+
+    @Test
+    fun aStrangerInACodeReadDoesNotLeakIntoTheNextCodeMade() {
+        // A code from a newer build, with a tile this build does not know.
+        val stranger = """{"t":"builtin","k":"FROM_THE_FUTURE","gx":0,"gy":0,"gw":4,"gh":4}"""
+        val known = """{"t":"builtin","k":"CLOCK","gx":4,"gy":0,"gw":4,"gh":4}"""
+        val doc = """{"schema":${DashboardStore.SCHEMA_VERSION},"pages":[[$stranger,$known]]}"""
+        val read = DashboardStore.parsePagesPlain(doc)!!.first()
+        assertEquals(listOf(BuiltinKind.CLOCK), read.filterIsInstance<DashboardItem.BuiltinWidget>().map { it.kind })
+        // What this unit shares afterwards is what it shows: the stranger is not appended.
+        val made = DashboardStore.serializePagesPlain(listOf(page))
+        assertTrue("FROM_THE_FUTURE" !in made)
+        val back = DashShare.decode(DashShare.encode(SharedDashboard(null, upright = false, items = page)))!!
+        assertEquals(DashShare.shareable(page), back.items)
     }
 
     @Test

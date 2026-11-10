@@ -430,8 +430,20 @@ object Maintenance {
         if (DemoMode.isOn || km !in 1..MAX_ODOMETER_KM) return
         val known = _state.value.odometer?.nowKm
         if (known != null && kotlin.math.abs(known - km) < 1) return
+        // A misread frame under the ceiling (1 234 567 on a 150 000 km car) must not become the
+        // saved mileage, with every km item overdue: a leap from what is known is taken only
+        // when the car repeats it. The bus then takes nothing lower until the process restarts.
+        if (known != null && kotlin.math.abs(known - km) > ODOMETER_LEAP_KM && kotlin.math.abs(pendingKm - km) > 1) {
+            pendingKm = km
+            return
+        }
+        pendingKm = 0
         setOdometer(km)
     }
+
+    /** An odometer reading far from the known one, waiting to be seen again. */
+    private var pendingKm = 0
+    private const val ODOMETER_LEAP_KM = 500
 
     /** The driver's own interval for its kind (added when the plan had none); emptied, the maker's may fill it in again. */
     fun setInterval(interval: UpkeepInterval) {

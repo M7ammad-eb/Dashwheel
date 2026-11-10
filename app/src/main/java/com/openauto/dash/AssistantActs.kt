@@ -39,12 +39,17 @@ internal object AssistantRules {
 
     /** Lower case, no accents or spaces: "Écran voiture" matches "ecranvoiture". */
     fun simple(s: String): String =
-        Normalizer.normalize(s, Normalizer.Form.NFD).replace(Regex("\\p{M}+|\\s+"), "").lowercase()
+        Normalizer.normalize(s, Normalizer.Form.NFD).replace(MARKS_AND_SPACES, "").lowercase()
 
     /** The words of [s], simplified: "Marie-Claire Dupont" is marie, claire, dupont. */
     fun words(s: String): List<String> =
-        Normalizer.normalize(s, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").lowercase()
-            .split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+        Normalizer.normalize(s, Normalizer.Form.NFD).replace(MARKS, "").lowercase()
+            .split(NON_WORD).filter { it.isNotEmpty() }
+
+    // Compiled once: match() calls these for every contact and app at each tier.
+    private val MARKS_AND_SPACES = Regex("\\p{M}+|\\s+")
+    private val MARKS = Regex("\\p{M}+")
+    private val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
 
     /**
      * Who [wanted] names in [items]: the whole name first, then every word

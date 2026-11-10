@@ -65,24 +65,28 @@ class RoadRules(var lanes: Boolean = true, var movedOff: Boolean = true) {
      */
     fun update(scene: RoadScene, speedKmh: Float?, indicating: Boolean, now: Long): RoadWarning? {
         val kmh = speedKmh ?: scene.speedKmh
-        if (kmh == null) {
-            clear()
-            return null
-        }
+        // No speed this frame (the car's reading missed, the GPS blinked): nothing new is judged, but
+        // a warning already up stays its time, and what was counted so far (that the car has driven)
+        // is kept; only the stream's end clears.
+        if (kmh == null) return standing(now)
         if (indicating) indicatedAt = now
         if (kmh >= DRIVEN_KMH) driven = true
         collision(scene, kmh, now)
         tooClose(scene, kmh, now)
         lane(scene, kmh, now)
         movedOff(scene, kmh, now)
-        return when {
+        return standing(now)
+    }
+
+    /** The most urgent warning still up at [now]. */
+    private fun standing(now: Long): RoadWarning? =
+        when {
             now < collisionUntil -> RoadWarning.COLLISION
             laneSide != null && now < laneUntil -> laneSide
             now < closeUntil -> RoadWarning.TOO_CLOSE
             now < movedOffUntil -> RoadWarning.MOVED_OFF
             else -> null
         }
-    }
 
     /** Road watch stopped: nothing stands, and nothing half-counted carries over. */
     fun clear() {
@@ -90,14 +94,19 @@ class RoadRules(var lanes: Boolean = true, var movedOff: Boolean = true) {
         collisionUntil = 0L
         closeSince = -1L
         closeUntil = 0L
+        closeNextAt = 0L
         offsets.clear()
         laneSide = null
         laneUntil = 0L
         leftArmed = true
         rightArmed = true
+        indicatedAt = Long.MIN_VALUE / 2
         driven = false
         stoppedSince = -1L
         nearestStopped = null
+        lastStoppedLead = null
+        steadySince = 0L
+        movedOffTold = false
         movedOffUntil = 0L
     }
 

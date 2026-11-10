@@ -143,7 +143,8 @@ internal object PerfTimer {
             var kmh = 0
             launch { carSpeedKmh().collect { kmh = it } }
             while (true) {
-                if (run.reading(System.currentTimeMillis(), kmh.toDouble())) {
+                // A clock GPS cannot set mid-run: the times are differences.
+                if (run.reading(android.os.SystemClock.elapsedRealtime(), kmh.toDouble())) {
                     _phase.value = run.phase
                     _last.value = run.result
                     if (run.phase == PerfRun.Phase.DONE) keepBest(app, run.result)

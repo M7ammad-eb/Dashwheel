@@ -31,10 +31,12 @@ internal object ReglinkWhitelist {
         if (present.isEmpty()) return@withContext false
         val missing = present.filter { f -> runCatching { java.io.File(f).readLines().none { it.trim() == pkg } }.getOrDefault(true) }
         if (missing.isEmpty()) return@withContext true
+        // Semicolons, not &&: one append refused (a read-only overlay) must not leave /system
+        // writable by skipping the remount at the end. Success is judged by reading the files back.
         val cmds = listOf("mount -o rw,remount /system") +
             missing.map { "grep -qx '$pkg' $it || echo '$pkg' >> $it" } +
             "mount -o ro,remount /system"
-        val out = runCatching { RootShell.su(cmds.joinToString(" && "), timeoutS = 20).all }.getOrElse { it.message }
+        val out = runCatching { RootShell.su(cmds.joinToString("; "), timeoutS = 20).all }.getOrElse { it.message }
         val ok = present.all { f -> runCatching { java.io.File(f).readLines().any { it.trim() == pkg } }.getOrDefault(false) }
         Log.i(TAG, if (ok) "Dashwheel on the Reglink whitelists" else "whitelists not written: $out")
         ok
