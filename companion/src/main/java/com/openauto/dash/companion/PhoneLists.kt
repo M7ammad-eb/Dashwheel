@@ -37,8 +37,8 @@ object PhoneLists {
     private const val AGENDA_EVERY_MS = 30 * 60_000L
 
     private val main = Handler(Looper.getMainLooper())
-    // The provider queries and the photos, one at a time, off the main thread.
-    private val worker = Executors.newSingleThreadExecutor()
+    // The provider queries and the photos, one at a time, off the main thread; [PhoneCalls] looks a caller up on it too.
+    internal val worker = Executors.newSingleThreadExecutor()
     private var app: Context? = null
     private val observers = HashMap<Uri, ContentObserver>()
     @Volatile private var lastContacts: PhoneContacts? = null

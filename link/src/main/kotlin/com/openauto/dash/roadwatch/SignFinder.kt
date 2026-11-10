@@ -73,9 +73,10 @@ object SignFinder {
         val gw = uw / STEP
         val gh = (uh * bottomY.coerceIn(0f, 1f)).toInt() / STEP
         if (gw < 8 || gh < 8) return emptyList()
-        val red = BooleanArray(gw * gh)
-        val light = BooleanArray(gw * gh)
-        val luma = ByteArray(gw * gh)
+        val s = scratch.get().fit(gw * gh)
+        val red = s.red
+        val light = s.light
+        val luma = s.luma
         for (gy in 0 until gh) for (gx in 0 until gw) {
             val i = Upright.index(gx * STEP, gy * STEP, width, height, rowStride, rotation)
             val r = rgba.get(i).toInt() and 0xFF
@@ -85,9 +86,36 @@ object SignFinder {
             light[gy * gw + gx] = isLight(r, g, b)
             luma[gy * gw + gx] = lumaOf(r, g, b).toByte()
         }
-        val limits = rings(red, light, gw, gh, uw, uh)
-        return limits + ends(Frame(rgba, width, height, rowStride, rotation, uw, uh), red, light, luma, gw, gh, limits)
+        val limits = rings(s, red, light, gw, gh, uw, uh)
+        return limits + ends(s, Frame(rgba, width, height, rowStride, rotation, uw, uh), red, light, luma, gw, gh, limits)
     }
+
+    /**
+     * The grids a frame is worked on, kept between frames: at 1280 x 960 they
+     * weigh some 4 MB, which allocated and zeroed at every frame kept the
+     * collector busy on the phone. One set per thread; a frame larger than any
+     * before grows them. They may be larger than the frame: the loops stop at
+     * gw * gh, never at the arrays' end.
+     */
+    private class Scratch {
+        var red = BooleanArray(0)
+        var light = BooleanArray(0)
+        var luma = ByteArray(0)
+        var ink = BooleanArray(0)
+        var bar = BooleanArray(0)
+        var seen = BooleanArray(0)
+        var stack = IntArray(0)
+
+        fun fit(n: Int): Scratch {
+            if (red.size < n) {
+                red = BooleanArray(n); light = BooleanArray(n); luma = ByteArray(n)
+                ink = BooleanArray(n); bar = BooleanArray(n); seen = BooleanArray(n); stack = IntArray(n)
+            }
+            return this
+        }
+    }
+
+    private val scratch = ThreadLocal.withInitial { Scratch() }
 
     /** A frame and its upright size, for sampling single pixels. */
     private class Frame(val rgba: ByteBuffer, val width: Int, val height: Int, val rowStride: Int, val rotation: Int, val uw: Int, val uh: Int) {
@@ -100,12 +128,14 @@ object SignFinder {
     }
 
     /** The red rings round a light middle: speed limits. */
-    private fun rings(red: BooleanArray, light: BooleanArray, gw: Int, gh: Int, uw: Int, uh: Int): List<SignSpot> {
-        val seen = BooleanArray(gw * gh)
-        val stack = IntArray(gw * gh)
+    private fun rings(s: Scratch, red: BooleanArray, light: BooleanArray, gw: Int, gh: Int, uw: Int, uh: Int): List<SignSpot> {
+        val n = gw * gh
+        val seen = s.seen
+        seen.fill(false, 0, n)
+        val stack = s.stack
         val out = ArrayList<SignSpot>()
         val minSide = MIN_SIDE_PX / STEP
-        for (start in red.indices) {
+        for (start in 0 until n) {
             if (!red[start] || seen[start]) continue
             // The red pixels touching this one, and the square round them.
             var top = 0
@@ -160,14 +190,18 @@ object SignFinder {
      * (sampled on the frame's own pixels: it is thin). A bar inside a red
      * ring is a digit's.
      */
-    private fun ends(frame: Frame, red: BooleanArray, light: BooleanArray, luma: ByteArray, gw: Int, gh: Int, limits: List<SignSpot>): List<SignSpot> {
-        val ink = BooleanArray(gw * gh) { !red[it] && (luma[it].toInt() and 0xFF) < INK_MAX }
+    private fun ends(s: Scratch, frame: Frame, red: BooleanArray, light: BooleanArray, luma: ByteArray, gw: Int, gh: Int, limits: List<SignSpot>): List<SignSpot> {
+        val n = gw * gh
+        val ink = s.ink
+        for (i in 0 until n) ink[i] = !red[i] && (luma[i].toInt() and 0xFF) < INK_MAX
         val out = ArrayList<SignSpot>()
         val minRun = MIN_END_SIDE_PX / STEP / 2
+        val bar = s.bar
+        val seen = s.seen
         for (dir in intArrayOf(1, -1)) {
-            val bar = BooleanArray(gw * gh) { ink[it] && isBarCell(it % gw, it / gw, dir, light, luma, gw, gh) }
-            val seen = BooleanArray(gw * gh)
-            for (start in bar.indices) {
+            for (i in 0 until n) bar[i] = ink[i] && isBarCell(i % gw, i / gw, dir, light, luma, gw, gh)
+            seen.fill(false, 0, n)
+            for (start in 0 until n) {
                 if (!bar[start] || seen[start]) continue
                 var x = start % gw
                 var y = start / gw

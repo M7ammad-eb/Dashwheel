@@ -243,6 +243,27 @@ class LaneFinderTest {
         assertEquals(listOf(60, 50, 40, 30, 20, 10), flipped.px.toList())
     }
 
+    @Test
+    fun theGreyOfEachPixelIsTheWeightedMeanOfItsBytes() {
+        // Every pixel its own colour, the frame read whole (one output pixel a source pixel) in both byte
+        // orders: each grey is what the weights give the three bytes, whichever way the int was read.
+        val w = 5
+        val h = 3
+        val rnd = Random(11)
+        val bytes = ByteArray(w * h * 4) { rnd.nextInt(256).toByte() }
+        val expected = IntArray(w * h) {
+            val r = bytes[it * 4].toInt() and 0xFF
+            val g = bytes[it * 4 + 1].toInt() and 0xFF
+            val b = bytes[it * 4 + 2].toInt() and 0xFF
+            (77 * r + 150 * g + 29 * b) shr 8
+        }
+        for (order in listOf(java.nio.ByteOrder.BIG_ENDIAN, java.nio.ByteOrder.LITTLE_ENDIAN)) {
+            val buf = ByteBuffer.wrap(bytes).order(order)
+            val luma = Luma.fromRgba(buf, w, h, rowStride = w * 4, rotation = 0, outW = w)
+            assertEquals(order.toString(), expected.toList(), luma.px.toList())
+        }
+    }
+
     private fun topDepth() = band.depth(band.topY)
 
     /** A bright upright stripe at [at] of the width, from row [fromY] down to the bonnet. */

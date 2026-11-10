@@ -518,7 +518,8 @@ internal class AlertWindow(
         if (style == AlertStyle.PANEL || style == AlertStyle.FULL) return null
         if (lp.gravity and Gravity.VERTICAL_GRAVITY_MASK != Gravity.TOP || v.width == 0 || v.height == 0) return null
         val dm = context.resources.displayMetrics
-        val left = when (lp.gravity and Gravity.HORIZONTAL_GRAVITY_MASK) {
+        // Absolute: END is the left in a right-to-left language, where the stack would otherwise be measured from the wrong edge.
+        val left = when (Gravity.getAbsoluteGravity(lp.gravity, v.layoutDirection) and Gravity.HORIZONTAL_GRAVITY_MASK) {
             Gravity.CENTER_HORIZONTAL -> (dm.widthPixels - v.width) / 2
             Gravity.RIGHT -> dm.widthPixels - lp.x - v.width
             else -> lp.x

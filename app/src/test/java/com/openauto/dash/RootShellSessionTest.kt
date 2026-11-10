@@ -57,7 +57,9 @@ class RootShellSessionTest {
         } catch (e: IllegalStateException) {
             assertTrue(e.message.orEmpty().contains("timed out"))
         }
-        Thread.sleep(200)
+        // The shell goes down a moment after the timeout: waited for, up to two seconds.
+        val until = System.currentTimeMillis() + 2_000
+        while (session.alive && System.currentTimeMillis() < until) Thread.sleep(10)
         assertFalse(session.alive)
     }
 }

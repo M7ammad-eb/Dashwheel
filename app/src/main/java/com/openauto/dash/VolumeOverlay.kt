@@ -172,13 +172,18 @@ object VolumeOverlay {
                         aboveCamera = { reversingNow() },
                         rank = AlertKind.VOLUME.rank
                     ).also { window = it }
-                    if (w.canShow()) w.show(style) { VolumeAlertContent(style) }
+                    _showing.value = w.canShow() && w.show(style) { VolumeAlertContent(style) }
                 } else {
                     window?.hide()
+                    _showing.value = false
                 }
             }
         }
     }
+
+    private val _showing = MutableStateFlow(false)
+    /** True while the overlay window is up (the launcher's popup then stays away: through the accessibility host it shows above the camera too). */
+    val showing: StateFlow<Boolean> = _showing
 
     /** The volume as last heard from the firmware, to tell a real change from a repeat. */
     @Volatile private var lastHeard: VolumeShown? = null
@@ -376,9 +381,11 @@ private fun VolumePanel(v: VolumeShown) {
 internal fun VolumeHost() {
     val volume by VolumeOverlay.alert.collectAsState()
     val style by VolumeOverlay.style.collectAsState()
+    val overlay by VolumeOverlay.showing.collectAsState()
     val v = volume ?: return
     val s = style ?: return
-    if (android.provider.Settings.canDrawOverlays(LocalContext.current)) return
+    // Not when the window is up, whichever way it got there (permission or the accessibility host): one bar, not two.
+    if (overlay) return
     AlertPopup(s, AlertKind.VOLUME.cardAt.alignment) { VolumeAlert(v, s) }
 }
 

@@ -2255,7 +2255,7 @@ private fun CockpitRange(item: DashboardItem, env: SkinTileEnv) {
                             // Three 14 sp lines need the room; a short panel keeps the two that matter.
                             if (ph >= 56.dp) {
                                 Text(
-                                    "%.0f L · %s".format(fuel.liters, fuel.source.uppercase()),
+                                    "${LocalUnits.current.volumeText(fuel.liters)} · ${fuel.source.uppercase()}",
                                     style = lcd((ph * 0.1f).coerceIn(14.dp, 16.dp).fixedSp(), segment.copy(alpha = 0.7f)),
                                     maxLines = 1
                                 )

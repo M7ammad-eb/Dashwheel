@@ -547,7 +547,8 @@ private fun CanvasWeather() {
     val weather = rememberWeather()
     val time = rememberTimeFormat()
     val units = LocalUnits.current
-    val now = System.currentTimeMillis()
+    // A clock that ticks: "rain from" turns into "rain until" when the rain starts, not at the next refresh.
+    val now = rememberWallClock(60_000L).longValue
     Column(modifier = Modifier.fillMaxSize().then(canvasGlass()).padding(20.dp), verticalArrangement = Arrangement.Center) {
         if (weather == null) {
             // Say why, as the other looks do: "--°" alone reads as broken.

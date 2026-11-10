@@ -97,17 +97,16 @@ class DisplayServerTest {
         unit.send(VideoConfig(width = 1024, height = 600, fps = 30, csd = Base64.getEncoder().encodeToString(csd)))
         // A delta frame first: dropped, and the display asks for a key frame.
         unit.sendBinary(VideoPacket(false, 0, byteArrayOf(0, 0, 0, 1, 0x41)).encode())
-        // Each frame is confirmed as it arrives (the head unit's VideoWindow), then the key frame asked for.
-        assertEquals(VideoAck(0), unit.next())
-        assertEquals(DisplayCommand(DisplayCommand.Action.KEYFRAME_PLEASE), unit.next())
+        // Each frame is confirmed as it arrives (the head unit's VideoWindow) and the key frame asked for;
+        // the request goes out from the stats thread, so the two can cross on the wire.
+        assertEquals(setOf(VideoAck(0), DisplayCommand(DisplayCommand.Action.KEYFRAME_PLEASE)), setOf(unit.next(), unit.next()))
         // Another delta frame at once: dropped too, but not asked for again within the half second...
         unit.sendBinary(VideoPacket(false, 1, byteArrayOf(0, 0, 0, 1, 0x41)).encode())
         assertEquals(VideoAck(1), unit.next())
         // ...and asked once it has passed (on the display's own clock, which the head unit never steps).
         uptime.addAndGet(500)
         unit.sendBinary(VideoPacket(false, 2, byteArrayOf(0, 0, 0, 1, 0x41)).encode())
-        assertEquals(VideoAck(2), unit.next())
-        assertEquals(DisplayCommand(DisplayCommand.Action.KEYFRAME_PLEASE), unit.next())
+        assertEquals(setOf(VideoAck(2), DisplayCommand(DisplayCommand.Action.KEYFRAME_PLEASE)), setOf(unit.next(), unit.next()))
         unit.sendBinary(VideoPacket(true, 3, byteArrayOf(0, 0, 0, 1, 0x65)).encode())
         assertEquals(VideoAck(3), unit.next())
         waitFor("the key frame to reach the decoder") { sink.written.isNotEmpty() }

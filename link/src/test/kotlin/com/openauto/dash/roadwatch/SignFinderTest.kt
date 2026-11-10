@@ -205,6 +205,45 @@ class SignFinderTest {
     }
 
     @Test
+    fun framesOfDifferentSizesOneAfterAnotherAreReadLikeFirstFrames() {
+        // The finder keeps its grids between frames, per thread: a smaller frame after a larger one
+        // works on arrays bigger than it, and must see nothing of the frame before.
+        val big = street()
+        sky(big)
+        sign(big, 500, 150, 40)
+        endSign(big, 200, 300, 40)
+        val sw = 320
+        val sh = 240
+        val small = ByteBuffer.allocate(sw * sh * 4)
+        for (i in 0 until sw * sh) small.put((205).toByte()).put((208).toByte()).put((212).toByte()).put(255.toByte())
+        // One end sign against the sky, in a frame a quarter the size.
+        for (y in 100 until 180) for (x in 210 until 290) {
+            val e = hypot(x - 250f, y - 140f)
+            val offBar = kotlin.math.abs((x - 250) * 0.7071f + (y - 140) * 0.7071f)
+            val ink = e > 0.92f * 20f || offBar < 0.07f * 40
+            val i = (y * sw + x) * 4
+            if (e <= 20f) { val v = if (ink) 30 else 225; small.put(i, v.toByte()); small.put(i + 1, v.toByte()); small.put(i + 2, v.toByte()) }
+        }
+        val onOneThread = listOf(
+            SignFinder.find(big, w, h, w * 4, 0),
+            SignFinder.find(small, sw, sh, sw * 4, 0),
+            SignFinder.find(big, w, h, w * 4, 0)
+        )
+        // A new thread starts with fresh grids: what a first frame gets.
+        fun fresh(block: () -> List<SignSpot>): List<SignSpot> {
+            var got: List<SignSpot>? = null
+            Thread { got = block() }.apply { start(); join() }
+            return got!!
+        }
+        assertEquals(2, onOneThread[0].size)
+        assertEquals(1, onOneThread[1].size)
+        assertEquals(SignKind.END, onOneThread[1][0].kind)
+        assertEquals(fresh { SignFinder.find(big, w, h, w * 4, 0) }, onOneThread[0])
+        assertEquals(fresh { SignFinder.find(small, sw, sh, sw * 4, 0) }, onOneThread[1])
+        assertEquals(onOneThread[0], onOneThread[2])
+    }
+
+    @Test
     fun theNumberIsBelievedOnceReadTwice() {
         val c = SignConfirm()
         assertNull(c.read(30, 0))

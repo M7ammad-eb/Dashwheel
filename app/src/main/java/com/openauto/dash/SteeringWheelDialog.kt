@@ -552,13 +552,8 @@ private fun assignmentSummary(assignment: WheelAssignment): String = when (assig
  */
 @Composable
 private fun AccessibilityReminder() {
-    var accessibilityOn by remember { mutableStateOf(SplitLauncher.isSystemSplitAvailable()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1_000)
-            accessibilityOn = SplitLauncher.isSystemSplitAvailable()
-        }
-    }
+    // The service says itself when it is bound: no poll of the system settings every second.
+    val accessibilityOn by SplitAccessibilityService.connected.collectAsState()
     if (!accessibilityOn) AccessibilityHint(stringResource(R.string.wheel_accessibility_anywhere))
 }
 
@@ -580,14 +575,8 @@ private fun WheelActionPicker(
             modifier = Modifier.padding(bottom = 8.dp)
         )
         AddChoiceRow(icon = Icons.Filled.Apps, label = stringResource(R.string.wheel_choose_app), onClick = onPickApp)
-        // Not observable: re-read so the hint goes away on coming back from system settings.
-        var accessibilityOn by remember { mutableStateOf(SplitLauncher.isSystemSplitAvailable()) }
-        LaunchedEffect(Unit) {
-            while (true) {
-                delay(1_000)
-                accessibilityOn = SplitLauncher.isSystemSplitAvailable()
-            }
-        }
+        // The service says itself when it is bound, so the hint goes away on coming back from system settings.
+        val accessibilityOn by SplitAccessibilityService.connected.collectAsState()
         WheelActionGroup.entries.forEach { group ->
             Spacer(Modifier.height(8.dp))
             SettingsSection(stringResource(group.labelRes))

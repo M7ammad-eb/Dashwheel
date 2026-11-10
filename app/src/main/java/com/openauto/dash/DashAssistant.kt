@@ -235,14 +235,18 @@ internal object DashAssistant {
         _phase.value = Phase.LISTENING
         val mic = scope.launch { listen(ws) }
         val player = scope.launch { play() }
+        // The tool calls run beside the loop, all under this job: cancelled with the session,
+        // so a tool still running (add_stop waits up to 10 s) does not answer on a socket that is gone.
+        val tools = SupervisorJob()
         try {
             while (true) {
                 val message = events.receive() ?: break
-                handle(context, ws, message)
+                handle(context, ws, message, tools)
             }
         } finally {
             mic.cancel()
             player.cancel()
+            tools.cancel()
             ws.cancel()
             // One line per conversation: whether the microphone was heard at all, and whether Gemini answered.
             DebugLog.note(
@@ -308,7 +312,7 @@ internal object DashAssistant {
         )
     }
 
-    private suspend fun handle(context: Context, ws: WebSocket, message: JSONObject) {
+    private fun handle(context: Context, ws: WebSocket, message: JSONObject, tools: Job) {
         if (KNOWN.none { message.has(it) }) Log.i(TAG, "message of another kind: ${message.keys().asSequence().joinToString()}")
         message.optJSONObject("serverContent")?.let { content ->
             content.optJSONObject("modelTurn")?.optJSONArray("parts")?.let { parts ->
@@ -338,19 +342,25 @@ internal object DashAssistant {
             }
         }
         message.optJSONObject("toolCall")?.optJSONArray("functionCalls")?.let { calls ->
-            val replies = JSONArray()
-            for (i in 0 until calls.length()) {
-                val call = calls.optJSONObject(i) ?: continue
-                val name = call.optString("name")
-                val args = call.optJSONObject("args") ?: JSONObject()
-                // The name only: the arguments carry what the driver said (a contact, a destination).
-                Log.i(TAG, "tool $name")
-                val result = runCatching {
-                    withContext(Dispatchers.Main) { AssistantTools.run(context, name, args) }
-                }.getOrElse { JSONObject().put("error", it.message ?: it.toString()) }
-                replies.put(JSONObject().put("id", call.optString("id")).put("name", name).put("response", JSONObject().put("result", result)))
+            // Beside the loop, not on it: a slow tool (add_stop waits up to 10 s, open_app loads
+            // the apps) held Gemini's voice, the interruption and the end of the turn queued
+            // behind it, so the barge-in came seconds late and the voice played in a burst.
+            scope.launch(tools) {
+                val replies = JSONArray()
+                for (i in 0 until calls.length()) {
+                    val call = calls.optJSONObject(i) ?: continue
+                    val name = call.optString("name")
+                    val args = call.optJSONObject("args") ?: JSONObject()
+                    // The name only: the arguments carry what the driver said (a contact, a destination).
+                    Log.i(TAG, "tool $name")
+                    val result = runCatching {
+                        withContext(Dispatchers.Main) { AssistantTools.run(context, name, args) }
+                    }.getOrElse { JSONObject().put("error", it.message ?: it.toString()) }
+                    replies.put(JSONObject().put("id", call.optString("id")).put("name", name).put("response", JSONObject().put("result", result)))
+                }
+                // The session ended while a tool ran: its socket is cancelled, nothing more goes on it.
+                if (isActive) ws.send(JSONObject().put("toolResponse", JSONObject().put("functionResponses", replies)).toString())
             }
-            ws.send(JSONObject().put("toolResponse", JSONObject().put("functionResponses", replies)).toString())
         }
         message.optJSONObject("goAway")?.let { Log.i(TAG, "Google will close the session soon: $it") }
     }
@@ -805,10 +815,28 @@ internal class GuidanceGate(private val maxMs: Long) {
 
 /** What Dashwheel's Gemini may read and do ([DashAssistant]): the declarations Gemini sees, and running them. */
 internal object AssistantTools {
-    /** The wheel-button actions Gemini may run; the voice ones would fight it for the microphone. */
-    private val ACTIONS = SteeringWheelAction.entries.filter {
-        it != SteeringWheelAction.GEMINI_LIVE && it != SteeringWheelAction.ASK_MECHANIC && it != SteeringWheelAction.VOICE_ASSISTANT
-    }
+    /**
+     * The wheel-button actions Gemini may run: those a driver asks for by voice, and that
+     * do no harm when wrong. Gemini also reads text written by others (notifications, web
+     * pages) and could be talked into an action by one, so the list is explicit rather than
+     * "everything but": a new action is not offered until someone puts it here. Left out
+     * are the accessibility ones (back, recents, the shades, split, screenshot), the voice
+     * ones (they would fight it for the microphone), the screen focus and the LPG log.
+     */
+    private val ACTIONS: Set<SteeringWheelAction> = setOf(
+        SteeringWheelAction.MEDIA_PLAY_PAUSE, SteeringWheelAction.MEDIA_PLAY, SteeringWheelAction.MEDIA_PAUSE,
+        SteeringWheelAction.MEDIA_NEXT, SteeringWheelAction.MEDIA_PREVIOUS,
+        SteeringWheelAction.VOLUME_UP, SteeringWheelAction.VOLUME_DOWN, SteeringWheelAction.VOLUME_MUTE,
+        SteeringWheelAction.SAY_STATUS, SteeringWheelAction.QUIET, SteeringWheelAction.DISMISS_ALERT,
+        SteeringWheelAction.NAVIGATE_HOME, SteeringWheelAction.NAVIGATE_WORK, SteeringWheelAction.NAVIGATE_FUEL,
+        SteeringWheelAction.STOP_GUIDANCE,
+        SteeringWheelAction.GO_HOME, SteeringWheelAction.OPEN_APPS,
+        SteeringWheelAction.NEXT_DASHBOARD, SteeringWheelAction.PREVIOUS_DASHBOARD,
+        SteeringWheelAction.DASHBOARD_UP, SteeringWheelAction.DASHBOARD_DOWN,
+        SteeringWheelAction.SECOND_SCREEN_NEXT, SteeringWheelAction.SECOND_SCREEN_PREVIOUS,
+        SteeringWheelAction.READ_MESSAGE,
+        SteeringWheelAction.ANSWER_CALL, SteeringWheelAction.DECLINE_CALL, SteeringWheelAction.HANG_UP_CALL
+    )
 
     fun declarations(): JSONArray {
         fun fn(name: String, description: String, params: JSONObject? = null) =

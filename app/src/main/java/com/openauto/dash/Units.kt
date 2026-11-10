@@ -88,6 +88,19 @@ data class UnitSystem(
     /** A distance typed in the shown unit, in km for storage. */
     fun km(shown: Double): Double = if (imperial) shown * KM_PER_MILE else shown
 
+    /** A volume of [l] litres in the driver's units: gallons when the economy is in mpg (US or UK), else litres. */
+    fun volume(l: Double): Double = when (economy) {
+        Economy.MPG_US -> l / LITRES_PER_US_GALLON
+        Economy.MPG_UK -> l / LITRES_PER_UK_GALLON
+        else -> l
+    }
+    val volumeUnit: String get() = when (economy) {
+        Economy.MPG_US, Economy.MPG_UK -> "gal"
+        else -> if (cyrillic) "л" else "L"
+    }
+    /** "42 L", "11 gal": a tank's contents in the driver's units (the mpg driver saw litres beside their miles). */
+    fun volumeText(l: Double): String = String.format(Locale.getDefault(), "%.0f %s", volume(l), volumeUnit)
+
     fun temp(c: Int): Int = if (fahrenheit) (c * 1.8 + 32).roundToInt() else c
     fun temp(c: Double): Int = (if (fahrenheit) c * 1.8 + 32 else c).roundToInt()
     fun temp(c: Float): Int = temp(c.toDouble())
@@ -154,6 +167,8 @@ data class UnitSystem(
         const val KM_PER_MILE = 1.609344
         const val METRES_PER_FOOT = 0.3048
         private const val MPG_UK_FACTOR = 282.481
+        private const val LITRES_PER_US_GALLON = 3.785411784
+        private const val LITRES_PER_UK_GALLON = 4.54609
         private const val MPG_US_FACTOR = 235.215
 
         /** Under a tenth of a mile a distance reads in feet, as road signs and maps do. */

@@ -1,6 +1,7 @@
 package com.openauto.dash.roadwatch
 
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -42,6 +43,9 @@ class Luma(val w: Int, val h: Int, val px: IntArray = IntArray(w * h)) {
             val out = Luma(w, h)
             val blockW = uprightW.toFloat() / w
             val blockH = uprightH.toFloat() / h
+            // A pixel's four bytes in one read, three bytes a pixel took a third of a frame's time. In the
+            // frame's byte order they are R, G, B, A; read as an int they land by the buffer's order.
+            val bigEndian = rgba.order() == ByteOrder.BIG_ENDIAN
             for (oy in 0 until h) {
                 for (ox in 0 until w) {
                     var sum = 0
@@ -50,10 +54,15 @@ class Luma(val w: Int, val h: Int, val px: IntArray = IntArray(w * h)) {
                         val v = min(uprightH - 1, ((oy + (sy + 0.5f) / SUBSAMPLES) * blockH).toInt())
                         for (sx in 0 until SUBSAMPLES) {
                             val u = min(uprightW - 1, ((ox + (sx + 0.5f) / SUBSAMPLES) * blockW).toInt())
-                            val i = Upright.index(u, v, width, height, rowStride, rotation)
-                            val r = rgba.get(i).toInt() and 0xFF
-                            val g = rgba.get(i + 1).toInt() and 0xFF
-                            val b = rgba.get(i + 2).toInt() and 0xFF
+                            val p = rgba.getInt(Upright.index(u, v, width, height, rowStride, rotation))
+                            val r: Int
+                            val g: Int
+                            val b: Int
+                            if (bigEndian) {
+                                r = p ushr 24; g = (p ushr 16) and 0xFF; b = (p ushr 8) and 0xFF
+                            } else {
+                                r = p and 0xFF; g = (p ushr 8) and 0xFF; b = (p ushr 16) and 0xFF
+                            }
                             sum += (77 * r + 150 * g + 29 * b) shr 8
                             n++
                         }

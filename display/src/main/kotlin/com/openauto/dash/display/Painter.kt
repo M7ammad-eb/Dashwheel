@@ -1613,7 +1613,16 @@ class Painter(val width: Int, val height: Int, private val overscanPct: Int, pri
     private var mono = false
 
     /** Font size in hundredths of the screen's short side. */
-    private fun font(style: Int, size: Float) = Font(if (mono) MONO else Font.SANS_SERIF, style, 1).deriveFont(style, size * unit)
+    private fun font(style: Int, size: Float): Font = fonts.getOrPut(FontKey(mono, style, size)) {
+        Font(if (mono) MONO else Font.SANS_SERIF, style, 1).deriveFont(style, size * unit)
+    }
+
+    private data class FontKey(val mono: Boolean, val style: Int, val size: Float)
+
+    /** The fonts the pages use, made once: a picture asks for a few dozen, the same ones every time. */
+    private val fonts = object : LinkedHashMap<FontKey, Font>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<FontKey, Font>?): Boolean = size > MAX_FONTS
+    }
 
     private inline fun draw(block: (Graphics2D) -> Unit): BufferedImage {
         val g = image.createGraphics()
@@ -1670,6 +1679,8 @@ class Painter(val width: Int, val height: Int, private val overscanPct: Int, pri
         val BG_NIGHT = Color(0x000000)
         val TEXT = Color(0xF2F5F8)
         val MUTED = Color(0x8A96A3)
+
+        private const val MAX_FONTS = 64
 
         /** A fixed-width face the Pi has (DejaVu), else one this machine has. */
         val MONO: String by lazy {

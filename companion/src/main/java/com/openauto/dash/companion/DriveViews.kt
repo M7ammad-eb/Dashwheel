@@ -83,7 +83,7 @@ private fun dayStart(at: Long): Long = Calendar.getInstance().apply {
  * by distance, fuel spent, and one bar per day (today on the right).
  */
 @Composable
-internal fun WeekCard(drives: List<DriveSummary>, now: Long = System.currentTimeMillis()) {
+internal fun WeekCard(drives: List<DriveSummary>, now: Long = rememberWallClock(DateUtils.HOUR_IN_MILLIS).longValue) {
     val today = dayStart(now)
     val from = today - 6 * DAY_MS
     val week = drives.filter { it.startedAt >= from }
@@ -392,7 +392,8 @@ internal fun LazyListScope.driveHistory(drives: List<DriveSummary>) {
 
 @Composable
 private fun DayHeading(day: Long) {
-    val now = System.currentTimeMillis()
+    // "Today" becomes "Yesterday" at midnight on a list left open; read once, it never did.
+    val now = rememberWallClock(DateUtils.HOUR_IN_MILLIS).longValue
     val text = if (now - day < 2 * DAY_MS) {
         DateUtils.getRelativeTimeSpanString(day, now, DateUtils.DAY_IN_MILLIS).toString()
     } else {

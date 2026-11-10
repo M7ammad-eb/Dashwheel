@@ -988,7 +988,7 @@ internal fun RangeCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     MeterChip(stringResource(R.string.vehicle_fuel), "$approx$fuelPct%", fuelPct / 100f, if (fuelPct <= 12) DashColors.Warning else DashColors.Good, false, Modifier.weight(1f))
-                    MeterChip(stringResource(R.string.vehicle_in_tank), approx + "%.0f L".format(fuel.liters), (fuel.liters / fuel.tankL).toFloat(), DashColors.Accent, false, Modifier.weight(1f))
+                    MeterChip(stringResource(R.string.vehicle_in_tank), approx + u.volumeText(fuel.liters), (fuel.liters / fuel.tankL).toFloat(), DashColors.Accent, false, Modifier.weight(1f))
                     MeterChip(stringResource(R.string.vehicle_avg_use), u.economy(fuel.avgUse)?.let { "%.1f".format(it) } ?: "--", (fuel.avgUse / (2 * CarProfileStore.current.typicalUse)).toFloat().coerceIn(0f, 1f), DashColors.Accent, false, Modifier.weight(1f))
                 }
                 // Always reachable under root, so a learned signal can be recalibrated or forgotten.

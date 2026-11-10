@@ -287,6 +287,12 @@ private fun CompanionScreen(resumes: Int, offer: PairingOffer?, onScanned: (Stri
     // What "Type on the car" holds, kept here so a rotation, another tab or the link dropping
     // doesn't empty it while the car's field still shows the text.
     var typed by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
+    // Paired, the screen splits in tabs; before that there is only the pairing. Settings and
+    // a tool open over the tabs. Remembered before the full screens below return early, or
+    // they would be forgotten while one is open: Car from photos closed from Tools landed on Home.
+    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    var settings by rememberSaveable { mutableStateOf(false) }
+    var tool by rememberSaveable { mutableStateOf<Tool?>(null) }
     // The car from three photos takes the whole screen while open.
     var fromPhotos by rememberSaveable { mutableStateOf(false) }
     if (fromPhotos) {
@@ -309,12 +315,8 @@ private fun CompanionScreen(resumes: Int, offer: PairingOffer?, onScanned: (Stri
         return
     }
 
-    // Paired, the screen splits in tabs; before that there is only the pairing.
-    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     val shown = if (paired) tab else Tab.HOME
-    // Settings and a tool open over the tabs; Back closes them.
-    var settings by rememberSaveable { mutableStateOf(false) }
-    var tool by rememberSaveable { mutableStateOf<Tool?>(null) }
+    // Back closes the settings or the tool.
     val opened = tool?.takeIf { paired }
     BackHandler(enabled = settings || opened != null) { if (opened != null) tool = null else settings = false }
     val update by CompanionUpdate.status.collectAsState()
@@ -1017,12 +1019,14 @@ private fun CarSpotCard() {
     val context = LocalContext.current
     val spot by CarSpot.spot.collectAsState()
     val s = spot
+    // "Left 50 min ago" moves on by itself; read once, it stayed at the minute the card was composed.
+    val now = rememberWallClock(DateUtils.MINUTE_IN_MILLIS).longValue
     Panel {
         Column(Modifier.padding(18.dp)) {
             val line = when {
                 s == null -> stringResource(R.string.car_spot_none)
-                s.saved -> stringResource(R.string.car_spot_saved, agoText(s.at))
-                else -> stringResource(R.string.car_spot_left, agoText(s.at))
+                s.saved -> stringResource(R.string.car_spot_saved, agoText(s.at, now))
+                else -> stringResource(R.string.car_spot_left, agoText(s.at, now))
             }
             CardHeading(Icons.Filled.LocalParking, stringResource(R.string.car_spot_title), line)
             if (s != null) {
@@ -1227,9 +1231,9 @@ private fun HintCard(text: String) {
     }
 }
 
-/** "50 minutes ago", "Yesterday"... in the phone's language. */
-private fun agoText(at: Long): String =
-    DateUtils.getRelativeTimeSpanString(at, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+/** "50 minutes ago", "Yesterday"... in the phone's language, as of [now]. */
+private fun agoText(at: Long, now: Long): String =
+    DateUtils.getRelativeTimeSpanString(at, now, DateUtils.MINUTE_IN_MILLIS).toString()
 
 /** Walking directions in Google Maps (the app when installed, else the browser). */
 private fun walkingDirections(s: CarSpotInfo): Uri =

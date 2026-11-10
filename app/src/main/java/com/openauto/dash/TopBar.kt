@@ -1347,7 +1347,9 @@ internal fun EditBar(
         )
         val measurer = rememberTextMeasurer()
         val labelStyle = MaterialTheme.typography.labelLarge
-        val labelsWidth = with(LocalDensity.current) { actionLabels.sumOf { measurer.measure(it, labelStyle).size.width }.toDp() }
+        val density = LocalDensity.current
+        // Measured once per set of labels, not at every edit (undo, zoom) that recomposes the bar.
+        val labelsWidth = remember(actionLabels, labelStyle, density) { with(density) { actionLabels.sumOf { measurer.measure(it, labelStyle).size.width }.toDp() } }
         // The actions keep their names only where the page's name still reads beside
         // them: in French they left it "Organisatio…" on a 1280 px screen.
         val iconsOnly = narrow || labelsWidth + EDIT_ACTION_CHROME * actionLabels.size + EDIT_BAR_REST > maxWidth

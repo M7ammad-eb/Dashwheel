@@ -52,7 +52,8 @@ open class TileStore<T : Any>(
     private val memory = object : LinkedHashMap<TileKey, T>(32, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<TileKey, T>?): Boolean = size > memoryTiles
     }
-    private val queue = LinkedHashSet<TileKey>()
+    /** The tiles to fetch, first first; the drawing thread's own needs go to the front. */
+    private val queue = ArrayDeque<TileKey>()
     private val fetching = HashSet<TileKey>()
     private val failedUntil = HashMap<TileKey, Long>()
     private var writes = 0
@@ -62,20 +63,16 @@ open class TileStore<T : Any>(
         repeat(workers) { i -> Thread({ work() }, "tile-fetch-$extension-$i").apply { isDaemon = true; start() } }
     }
 
-    /** The tile, if it is at hand; else it is fetched, and [onLoaded] says when it came. */
+    /**
+     * The tile, if it is in memory; else it is read from the card or fetched
+     * by a worker, and [onLoaded] says when it came. A tile on the card is
+     * not read here: decoding it took the drawing thread a few milliseconds a
+     * tile, a whole picture's worth when the map turned to a new region.
+     */
     fun get(z: Int, x: Int, y: Int): T? {
         val key = wrap(z, x, y) ?: return null
         synchronized(lock) {
             memory[key]?.let { return it }
-        }
-        // On the card from an earlier drive: decoded on the drawing thread, a few milliseconds.
-        fileOf(key)?.takeIf { it.isFile }?.let { file ->
-            val tile = runCatching { decode(file.readBytes()) }.getOrNull()
-            if (tile != null) {
-                synchronized(lock) { memory[key] = tile }
-                return tile
-            }
-            runCatching { file.delete() }
         }
         enqueue(listOf(key), first = true)
         return null
@@ -91,23 +88,24 @@ open class TileStore<T : Any>(
         enqueue(keys.mapNotNull { wrap(it.z, it.x, it.y) }, first = false)
     }
 
-    /** Queued for fetching, unless at hand, being fetched, or recently refused. */
+    /** Queued for the workers, unless in memory, being fetched, or recently refused; [first]: ahead of the rest, queued or not. */
     private fun enqueue(keys: List<TileKey>, first: Boolean) {
         val now = clock()
         synchronized(lock) {
             // Refusals that have rested their minute are forgotten: over a drive without internet, every tile passed would stay.
             failedUntil.values.removeIf { it <= now }
-            val wanted = keys.filter { it !in memory && it !in fetching && it !in failedUntil && fileOf(it)?.isFile != true }
+            val wanted = keys.filter { it !in memory && it !in fetching && it !in failedUntil }
             if (wanted.isEmpty()) return
             if (first) {
-                val rest = queue.toList()
-                queue.clear()
-                queue += wanted
-                queue += rest
+                // Moved to the front one by one, in their order: the queue is short, and the drawing thread asks every picture.
+                for (key in wanted.asReversed()) {
+                    queue.remove(key)
+                    queue.addFirst(key)
+                }
             } else {
-                queue += wanted
+                for (key in wanted) if (key !in queue) queue.addLast(key)
             }
-            while (queue.size > MAX_QUEUE) queue.remove(queue.last())
+            while (queue.size > MAX_QUEUE) queue.removeLast()
             lock.notifyAll()
         }
     }
@@ -122,10 +120,18 @@ open class TileStore<T : Any>(
                         return
                     }
                 }
-                queue.first().also { queue.remove(it); fetching += it }
+                queue.removeFirst().also { fetching += it }
             }
-            val bytes = runCatching { fetch(urlFor(key), userAgent) }.getOrNull()
-            val tile = bytes?.let { runCatching { decode(it) }.getOrNull() }
+            // On the card from an earlier drive, else fetched; a file that isn't a tile (a write cut short) goes.
+            val file = fileOf(key)?.takeIf { it.isFile }
+            var tile = file?.let { f -> runCatching { decode(f.readBytes()) }.getOrNull() }
+            val fromCard = tile != null
+            var bytes: ByteArray? = null
+            if (!fromCard) {
+                file?.let { runCatching { it.delete() } }
+                bytes = runCatching { fetch(urlFor(key), userAgent) }.getOrNull()
+                tile = bytes?.let { runCatching { decode(it) }.getOrNull() }
+            }
             synchronized(lock) {
                 fetching -= key
                 if (tile == null) {
@@ -135,7 +141,7 @@ open class TileStore<T : Any>(
                 }
             }
             if (tile != null) {
-                save(key, bytes)
+                if (!fromCard) save(key, bytes!!)
                 onLoaded()
             }
         }
@@ -165,6 +171,9 @@ open class TileStore<T : Any>(
 
     /** The tiles refused lately and still resting, for the tests. */
     internal fun resting(): Set<TileKey> = synchronized(lock) { failedUntil.keys.toSet() }
+
+    /** The tiles queued or with a worker, in the queue's order, for the tests. */
+    internal fun pending(): List<TileKey> = synchronized(lock) { queue.toList() + fetching }
 
     private fun fileOf(key: TileKey): File? = dir?.let { File(it, "${key.z}/${key.x}/${key.y}.$extension") }
 

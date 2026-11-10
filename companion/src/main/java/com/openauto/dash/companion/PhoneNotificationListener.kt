@@ -3,9 +3,11 @@ package com.openauto.dash.companion
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.RemoteInput
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
@@ -13,6 +15,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.openauto.dash.link.ConversationLine
 import com.openauto.dash.link.NotificationPosted
@@ -31,6 +34,18 @@ import java.util.Base64
  * to show as a call.
  */
 class PhoneNotificationListener : NotificationListenerService() {
+
+    override fun onCreate() {
+        super.onCreate()
+        // The listener lives for days: without this, an updated app kept its old icon in the car.
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addDataScheme("package")
+        }
+        // A protected system broadcast: only the system can send it.
+        ContextCompat.registerReceiver(this, packageChanged, filter, ContextCompat.RECEIVER_EXPORTED)
+    }
 
     override fun onListenerConnected() {
         instance = this
@@ -51,6 +66,7 @@ class PhoneNotificationListener : NotificationListenerService() {
 
     override fun onDestroy() {
         if (instance === this) instance = null
+        runCatching { unregisterReceiver(packageChanged) }
         super.onDestroy()
     }
 
@@ -160,6 +176,15 @@ class PhoneNotificationListener : NotificationListenerService() {
     }
 
     private val identityCache = HashMap<String, Pair<String, String?>>()
+
+    /** An app updated or changed: its name and icon are read again at its next notification, and the icon sent again. */
+    private val packageChanged = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, intent: Intent) {
+            val pkg = intent.data?.schemeSpecificPart ?: return
+            synchronized(this@PhoneNotificationListener) { identityCache.remove(pkg) }
+            synchronized(sent) { sent.icons.remove(pkg) }
+        }
+    }
 
     /** App name + icon (small PNG, base64), once per package. */
     @Synchronized

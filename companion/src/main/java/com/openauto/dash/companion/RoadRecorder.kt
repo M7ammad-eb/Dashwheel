@@ -433,8 +433,12 @@ class RoadRecorder(context: Context) {
     private fun sample() {
         val now = SystemClock.elapsedRealtime()
         val l = location?.takeIf { now - locationAt < 5_000L }
-        samples.addLast(Sample(now, System.currentTimeMillis(), l?.latitude, l?.longitude, l?.speed?.takeIf { l.hasSpeed() }?.times(3.6f), RoadTelemetry.fresh(now), PhoneHeading.radians, RoadSigns.kmh, PhoneHeading.pitchDeg, PhoneHeading.tiltDeg))
+        val s = Sample(now, System.currentTimeMillis(), l?.latitude, l?.longitude, l?.speed?.takeIf { l.hasSpeed() }?.times(3.6f), RoadTelemetry.fresh(now), PhoneHeading.radians, RoadSigns.kmh, PhoneHeading.pitchDeg, PhoneHeading.tiltDeg)
+        samples.addLast(s)
         while (samples.isNotEmpty() && now - samples.first().elapsedMs > RING_MS + AFTER_MS) samples.removeFirst()
+        // The picture's time and place, formatted here twice a second rather than in draw() at every frame.
+        timeText = clock.format(Date(s.wallMs))
+        placeText = if (s.lat != null && s.lng != null) String.format(Locale.US, "%.5f %.5f", s.lat, s.lng) else ""
         handler.postDelayed(sampleTick, SAMPLE_MS)
     }
 
@@ -444,6 +448,15 @@ class RoadRecorder(context: Context) {
     private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD) }
     private val amber = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(245, 185, 66) }
     private val clock = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+    // What draw() writes, set by sample() on the same thread (the overlay draws on [handler]).
+    private var timeText = ""
+    private var placeText = ""
+    /** Where the place starts: the width of a time, measured once per text size, not per frame. */
+    private var placeOffset = 0f
+    private var placeOffsetFor = 0f
+    /** The indicator arrows, redrawn into the same two paths frame after frame. */
+    private val leftArrow = Path()
+    private val rightArrow = Path()
 
     /** The data written into one frame of the video, upright whichever way the phone is held. */
     private fun draw(frame: Frame) {
@@ -461,16 +474,19 @@ class RoadRecorder(context: Context) {
         }
         val unit = h / 26f
         text.textSize = unit
+        if (unit != placeOffsetFor) {
+            placeOffset = text.measureText("0000-00-00 00:00:00 ")
+            placeOffsetFor = unit
+        }
         val pad = unit * 0.5f
         val now = SystemClock.elapsedRealtime()
         val l = location?.takeIf { now - locationAt < 5_000L }
         val car = RoadTelemetry.fresh(now)
         val speed = car?.speedKmh?.let { "$it km/h" } ?: l?.takeIf { it.hasSpeed() }?.let { "${(it.speed * 3.6f).toInt()} km/h GPS" } ?: ""
-        val place = l?.let { String.format(Locale.US, "%.5f %.5f", it.latitude, it.longitude) } ?: ""
         // A strip along the bottom: time and place on the left, the car on the right.
         canvas.drawRect(0f, h - unit * 1.9f, w.toFloat(), h.toFloat(), strip)
-        canvas.drawText(clock.format(Date()), pad, h - unit * 0.6f, text)
-        if (place.isNotEmpty()) canvas.drawText(place, pad + text.measureText("0000-00-00 00:00:00 "), h - unit * 0.6f, text)
+        canvas.drawText(timeText, pad, h - unit * 0.6f, text)
+        if (placeText.isNotEmpty()) canvas.drawText(placeText, pad + placeOffset, h - unit * 0.6f, text)
         if (speed.isNotEmpty()) {
             text.textAlign = Paint.Align.RIGHT
             canvas.drawText(speed, w - pad, h - unit * 0.6f, text)
@@ -482,8 +498,8 @@ class RoadRecorder(context: Context) {
             val y = h - unit * 1.0f
             val left = car.turnLeft || car.hazard
             val right = car.turnRight || car.hazard
-            if (left) canvas.drawPath(Path().apply { moveTo(x - unit * 0.9f, y); lineTo(x, y - unit * 0.5f); lineTo(x, y + unit * 0.5f); close() }, amber)
-            if (right) canvas.drawPath(Path().apply { moveTo(x + unit * 1.5f, y); lineTo(x + unit * 0.6f, y - unit * 0.5f); lineTo(x + unit * 0.6f, y + unit * 0.5f); close() }, amber)
+            if (left) canvas.drawPath(leftArrow.apply { rewind(); moveTo(x - unit * 0.9f, y); lineTo(x, y - unit * 0.5f); lineTo(x, y + unit * 0.5f); close() }, amber)
+            if (right) canvas.drawPath(rightArrow.apply { rewind(); moveTo(x + unit * 1.5f, y); lineTo(x + unit * 0.6f, y - unit * 0.5f); lineTo(x + unit * 0.6f, y + unit * 0.5f); close() }, amber)
         }
         // Who recorded it, top left, small.
         text.textSize = unit * 0.7f

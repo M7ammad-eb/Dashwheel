@@ -695,22 +695,35 @@ private object MsTrack {
  * The route under way as a race: when it started, the time it was planned to
  * take, the most distance (or time) left seen, and when each sector was done.
  */
-private class MsRace(val startedAt: Long, val plannedMs: Long?) {
+private class MsRace(var startedAt: Long, var plannedMs: Long?) {
     var maxLeft = 0f
     val ends = LongArray(3)
+
+    /** A new route under the same guidance: the race starts over. */
+    fun restart(now: Long, planned: Long?) {
+        startedAt = now
+        plannedMs = planned
+        maxLeft = 0f
+        ends.fill(0L)
+    }
 }
 
 /** The race for the route on now and how far along it the car is, 0..1. */
 @Composable
 private fun rememberRace(nav: NavState): Pair<MsRace, Float> {
-    val race = remember(nav.active, nav.packageName) {
-        MsRace(System.currentTimeMillis(), etaMinutes(nav.eta)?.let { it * 60_000L })
+    // Keyed on the destination handed off too, and started over when what is left grows by a
+    // third (a new destination picked inside the navigation app): the old route's start, plan
+    // and sectors otherwise judged the new one. Times are differences: a clock GPS cannot set.
+    val handed by NavHandoff.handedOff.collectAsState()
+    val race = remember(nav.active, nav.packageName, handed?.at) {
+        MsRace(SystemClock.elapsedRealtime(), etaMinutes(nav.eta)?.let { it * 60_000L })
     }
     val left = kmLeft(nav.eta) ?: etaMinutes(nav.eta)?.toFloat()
     val progress = remember(race, left) {
+        if (left != null && race.maxLeft > 0f && left > race.maxLeft * 1.3f) race.restart(SystemClock.elapsedRealtime(), etaMinutes(nav.eta)?.let { it * 60_000L })
         if (left != null) race.maxLeft = max(race.maxLeft, left)
         val p = if (left == null || race.maxLeft <= 0f) 0f else (1f - left / race.maxLeft).coerceIn(0f, 1f)
-        val now = System.currentTimeMillis()
+        val now = SystemClock.elapsedRealtime()
         for (i in 0 until 3) if (race.ends[i] == 0L && p >= MsTrack.ends[i] - 0.001f) race.ends[i] = now
         p
     }
