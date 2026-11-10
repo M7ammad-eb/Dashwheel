@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Límites de velocidad en el equipo</string>
+    <string name="limits_kept_row_detail">Guardados para cuando los servidores de datos del mapa no responden</string>
+    <string name="limits_kept_explanation">Los límites de las carreteras por las que conduces se guardan en el equipo, y también una zona alrededor del coche si la pides aquí. Cuando ningún servidor de datos del mapa responde, el mosaico y los avisos hablados siguen con ellos. Una zona se vuelve a leer cada mes.</string>
+    <string name="limits_kept_radius">Zona alrededor del coche</string>
+    <string name="limits_kept_download">Descargar</string>
+    <string name="limits_kept_downloading">Descargando %1$d %%</string>
+    <string name="limits_kept_failed">Ningún servidor de datos del mapa respondió. Inténtalo más tarde.</string>
+    <string name="limits_kept_no_position">La posición del coche aún no se conoce.</string>
+    <string name="limits_kept_section">Guardados en el equipo</string>
+    <string name="limits_kept_no_area">Ninguna zona todavía</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d carretera</item>
+        <item quantity="many">%d carreteras</item>
+        <item quantity="other">%d carreteras</item>
+    </plurals>
+</resources>

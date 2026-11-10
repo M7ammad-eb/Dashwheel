@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Limites de velocidade no rádio</string>
+    <string name="limits_kept_row_detail">Guardados para quando os servidores de dados do mapa não respondem</string>
+    <string name="limits_kept_explanation">Os limites das estradas por onde conduz ficam guardados no rádio, e também uma zona à volta do carro se a pedir aqui. Quando nenhum servidor de dados do mapa responde, o mosaico e os avisos falados continuam com eles. Uma zona é lida de novo todos os meses.</string>
+    <string name="limits_kept_radius">Zona à volta do carro</string>
+    <string name="limits_kept_download">Transferir</string>
+    <string name="limits_kept_downloading">A transferir %1$d%%</string>
+    <string name="limits_kept_failed">Nenhum servidor de dados do mapa respondeu. Tente mais tarde.</string>
+    <string name="limits_kept_no_position">A posição do carro ainda não é conhecida.</string>
+    <string name="limits_kept_section">Guardados no rádio</string>
+    <string name="limits_kept_no_area">Ainda nenhuma zona</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d estrada</item>
+        <item quantity="many">%d estradas</item>
+        <item quantity="other">%d estradas</item>
+    </plurals>
+</resources>

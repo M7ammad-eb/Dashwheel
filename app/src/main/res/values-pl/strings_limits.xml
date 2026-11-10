@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="limits_kept_title">Ograniczenia prędkości na radiu</string>
+    <string name="limits_kept_row_detail">Zachowane na czas, gdy serwery danych mapy nie odpowiadają</string>
+    <string name="limits_kept_explanation">Ograniczenia dróg, którymi jeździsz, są zachowywane na radiu, a także obszar wokół auta, jeśli o to tutaj poprosisz. Gdy żaden serwer danych mapy nie odpowiada, kafelek i alerty głosowe działają dalej na ich podstawie. Obszar jest odczytywany ponownie co miesiąc.</string>
+    <string name="limits_kept_radius">Obszar wokół auta</string>
+    <string name="limits_kept_download">Pobierz</string>
+    <string name="limits_kept_downloading">Pobieranie %1$d%%</string>
+    <string name="limits_kept_failed">Żaden serwer danych mapy nie odpowiedział. Spróbuj później.</string>
+    <string name="limits_kept_no_position">Pozycja auta nie jest jeszcze znana.</string>
+    <string name="limits_kept_section">Zachowane na radiu</string>
+    <string name="limits_kept_no_area">Jeszcze żadnego obszaru</string>
+    <plurals name="limits_kept_roads">
+        <item quantity="one">%d droga</item>
+        <item quantity="few">%d drogi</item>
+        <item quantity="many">%d dróg</item>
+        <item quantity="other">%d drogi</item>
+    </plurals>
+</resources>
