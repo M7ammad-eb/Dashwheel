@@ -124,7 +124,8 @@ internal class SessionPick(private val clock: () -> Long) {
             ?: sessions.filter { it.mood == SessionMood.PAUSED && it.hasMetadata }.maxByOrNull { lastActive[it.key] ?: Long.MIN_VALUE }
         // A session "playing" with nothing to show doesn't take its place unless it started after
         // that song last played: one already playing when first seen, or since before, is stale.
-        fun staleBeside(s: SessionView): Boolean = pausedSong != null && !s.hasMetadata && !s.stock &&
+        // Never the one on screen: untitled for a moment is a song change (YouTube Music skipping).
+        fun staleBeside(s: SessionView): Boolean = pausedSong != null && s.key != shown && !s.hasMetadata && !s.stock &&
             (s.key in activeWhenFirstSeen || (activeSince[s.key] ?: Long.MIN_VALUE) <= (lastActive[pausedSong.key] ?: Long.MIN_VALUE))
         sessions.filter { it.mood.active }
             .filterNot { anyPlaying && it.mood == SessionMood.BETWEEN && now - (lastPlaying[it.key] ?: activeSince[it.key] ?: now) > STALL_MS }
