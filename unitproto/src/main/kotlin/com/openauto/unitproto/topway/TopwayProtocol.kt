@@ -9,7 +9,8 @@ package com.openauto.unitproto.topway
  * canbox's, its frame's bytes in [android.os.Message.obj].
  *
  * Read from the car app's bytecode, not from Topway: what is not named here
- * is not known. Dashwheel only listens; it never writes to the MCU.
+ * is not known. Dashwheel only listens; it never writes to the MCU. It only
+ * asks the firmware's command service ([COMMAND_PACKAGE]) to play, pause or skip.
  */
 object TopwayProtocol {
     /** The framework class every Topway app talks to the MCU through. */
@@ -47,6 +48,25 @@ object TopwayProtocol {
 
     /** The channels whose bytes go to the finder. */
     fun carriesFrames(channel: Int): Boolean = channel == CH_CANBOX || channel == CH_CAR_TYPE
+
+    /**
+     * The firmware's command service (com.tw.service.xt 2022.02.17, a TS unit's copy), exported
+     * with no permission: the unit's own apps send play, pause, next and previous through it, and
+     * it hands each to the source playing (Bluetooth music, the unit's music player, video, radio),
+     * else sends a media key. The Bluetooth app takes no media key and no session command, so
+     * this is the one way to steer it. Read from the service's bytecode.
+     */
+    const val COMMAND_PACKAGE = "com.tw.service.xt"
+    const val COMMAND_CLASS = "com.tw.service.xt.CommandService"
+    const val COMMAND_BIND_ACTION = "com.tw.service.xt.CommandService.Bind"
+    const val COMMAND_DESCRIPTOR = "com.tw.service.xt.aidl.ITWCommandAidl"
+    /** ITWCommandAidl's transactions: no arguments, an exception-only reply. */
+    const val TX_MEDIA_NEXT = 55
+    const val TX_MEDIA_PREVIOUS = 56
+    const val TX_MEDIA_PLAY = 57
+    const val TX_MEDIA_PAUSE = 58
+    /** The Bluetooth app whose session takes no command ([COMMAND_PACKAGE] steers it). */
+    const val BT_PACKAGE = "com.tw.bt"
 
     /** The car info service ([INFO_PACKAGE]), exported, its permission a normal one: bound like the car app binds it. */
     const val INFO_PACKAGE = "com.tw.carinfoservice"
