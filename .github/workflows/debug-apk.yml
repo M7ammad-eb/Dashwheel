@@ -4,6 +4,8 @@ name: Debug APK
 # secrets needed. Run it from the Actions tab (Run workflow) on any branch.
 on:
   workflow_dispatch:
+  push:
+    branches: [fix/now-playing]
 
 permissions:
   contents: read
