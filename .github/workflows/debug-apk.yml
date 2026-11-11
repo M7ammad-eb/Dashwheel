@@ -1,7 +1,9 @@
 name: Debug APK
 
-# A debug build of the launcher for sideloading on a phone, with no signing
-# secrets needed. Run it from the Actions tab (Run workflow) on any branch.
+# A personal build of the launcher for sideloading: optimized like a release
+# (R8, ARM only) and signed with this fork's own key, so each build installs
+# over the last without wiping the app's setup. Nothing is published: the APK
+# is a workflow artifact only. Needs the DW_* secrets (Settings > Secrets).
 on:
   workflow_dispatch:
   push:
@@ -31,12 +33,30 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
-      - name: Build the launcher (GitHub edition, debug)
-        run: ./gradlew :app:assembleGithubDebug --stacktrace
+      - name: Prepare signing key
+        env:
+          DW_KEYSTORE_BASE64: ${{ secrets.DW_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$DW_KEYSTORE_BASE64" ]; then
+            echo "::error::Add the DW_KEYSTORE_BASE64, DW_KEYSTORE_PASSWORD, DW_KEY_ALIAS and DW_KEY_PASSWORD secrets first."
+            exit 1
+          fi
+          echo "$DW_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/dw.keystore"
+
+      # Each build's version grows with the run number, so it installs over the last one.
+      - name: Build the launcher (GitHub edition, release, own key)
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/dw.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.DW_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.DW_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.DW_KEY_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}0
+          VERSION_NAME: personal-${{ github.run_number }}
+        run: ./gradlew :app:assembleGithubRelease --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: dashwheel-launcher-debug
-          path: app/build/outputs/apk/github/debug/*.apk
+          name: dashwheel-launcher
+          path: app/build/outputs/apk/github/release/*.apk
           if-no-files-found: error
