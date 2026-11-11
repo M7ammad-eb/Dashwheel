@@ -76,6 +76,9 @@ class CarMediaController(private val context: Context) {
     private val sessionsChangedListener =
         MediaSessionManager.OnActiveSessionsChangedListener { controllers -> bind(controllers) }
 
+    /** Which session the tile follows ([SessionPick]), and when each last played. */
+    private val pick = SessionPick { SystemClock.elapsedRealtime() }
+
     /**
      * Starts observing active media sessions. Safe (and idempotent) to call
      * before access is granted — the UI re-invokes it once the user grants
@@ -91,6 +94,7 @@ class CarMediaController(private val context: Context) {
             sessionManager.addOnActiveSessionsChangedListener(sessionsChangedListener, listenerComponent)
             bind(sessionManager.getActiveSessions(listenerComponent))
             started = true
+            main.postDelayed(rescanTick, RESCAN_MS)
         } catch (e: SecurityException) {
             // Notification access not granted yet; UI prompts the user to enable it.
             _mediaState.value = MediaState()
@@ -120,6 +124,9 @@ class CarMediaController(private val context: Context) {
         HeadUnitMedia.removeListener(stockChanged)
         PlayerNotifications.removeListener(playerNotified)
         main.removeCallbacks(stockTick)
+        main.removeCallbacks(rescanTick)
+        main.removeCallbacks(emptyRecheck)
+        emptySince = 0L
         // Or the next start finds "already shown" and never ticks again: the radio's tile then stood still.
         stockShown = null
         runCatching { sessionManager.removeOnActiveSessionsChangedListener(sessionsChangedListener) }
@@ -130,20 +137,82 @@ class CarMediaController(private val context: Context) {
     }
 
     private fun bind(controllers: List<MediaController>?) {
+        val listed = withNotifiedSessions(controllers.orEmpty())
         boundControllers.forEach { runCatching { it.unregisterCallback(controllerCallback) } }
-        boundControllers = controllers.orEmpty()
+        boundControllers = listed
         // Observe every session so we follow whichever one is actually playing.
         boundControllers.forEach { runCatching { it.registerCallback(controllerCallback) } }
         selectActive()
     }
 
-    /** Picks the session that is currently playing, falling back to the first. */
+    /**
+     * [listed] plus the sessions players' notifications name that the system
+     * didn't list. On some units (Topway, Android 13) YouTube Music's session
+     * only showed up once another player changed: the tile missed it until then.
+     */
+    private fun withNotifiedSessions(listed: List<MediaController>): List<MediaController> {
+        val known = listed.mapTo(HashSet()) { it.sessionToken }
+        val extra = PlayerNotifications.sessionTokens().values
+            .filter { it !in known }
+            .mapNotNull { token -> runCatching { MediaController(context, token) }.getOrNull() }
+            // A session already released still has its token in an old notification.
+            .filter { runCatching { it.packageName }.getOrNull() != null }
+        val extraPackages = extra.map { it.packageName }
+        if (extraPackages != lastExtraLogged) {
+            lastExtraLogged = extraPackages
+            if (extraPackages.isNotEmpty()) DebugLog.note(context, "media: sessions only a notification named: ${extraPackages.joinToString()}")
+        }
+        return listed + extra
+    }
+
+    private var lastExtraLogged: List<String?> = emptyList()
+
+    /**
+     * Lists the sessions again, and binds them when the set changed: the
+     * system's "sessions changed" call isn't always made on every unit.
+     */
+    private fun rescan() {
+        if (!started) return
+        val listed = runCatching { sessionManager.getActiveSessions(listenerComponent) }.getOrNull() ?: return
+        val now = withNotifiedSessions(listed)
+        if (now.map { it.sessionToken } != boundControllers.map { it.sessionToken }) bind(listed) else selectActive()
+    }
+
+    private val rescanTick = object : Runnable {
+        override fun run() {
+            rescan()
+            if (started) main.postDelayed(this, RESCAN_MS)
+        }
+    }
+
+    /** Picks the session to follow ([SessionPick]): playing first, then paused, never one stale. */
     private fun selectActive() {
-        activeController = boundControllers.firstOrNull {
-            it.playbackState?.state == PlaybackState.STATE_PLAYING
-        } ?: boundControllers.firstOrNull()
+        val views = boundControllers.map { it.view() }
+        pick.observe(views)
+        val chosen = pick.pick(views, activeController?.sessionToken, rememberedPackage ?: getLastMediaPackage(context))
+        val next = chosen?.let { v -> boundControllers.firstOrNull { it.sessionToken == v.key } }
+        if (next?.sessionToken != activeController?.sessionToken) {
+            DebugLog.note(context, "media pick: ${next?.packageName ?: "none"} of " +
+                views.joinToString { "${it.pkg} ${it.mood}${if (it.hasMetadata) "" else " (empty)"}" })
+        }
+        activeController = next
         playIfPending()
         publish(activeController)
+    }
+
+    private fun MediaController.view(): SessionView {
+        val pkg = runCatching { packageName }.getOrNull()
+        val metadata = runCatching { metadata }.getOrNull()
+        val named = !metadata?.getString(MediaMetadata.METADATA_KEY_TITLE).isNullOrBlank() ||
+            !metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE).isNullOrBlank() ||
+            PlayerNotifications.of(pkg) != null
+        return SessionView(
+            key = sessionToken,
+            pkg = pkg,
+            mood = SessionMood.of(runCatching { playbackState?.state }.getOrNull()),
+            hasMetadata = named,
+            stock = HeadUnitMedia.isStock(pkg)
+        )
     }
 
     /**
@@ -173,7 +242,7 @@ class CarMediaController(private val context: Context) {
     private fun publish(controller: MediaController?) {
         if (publishStock(controller)) return
         if (controller == null) {
-            _mediaState.value = MediaState()
+            showMedia(MediaState())
             return
         }
         // Remember which app owns this session so the split-screen cockpit can
@@ -232,7 +301,13 @@ class CarMediaController(private val context: Context) {
     // least, their name is shown instead, and the unit log says which player
     // it was and what it gave, once each, so it can be read properly later.
 
-    private val playerNotified: (String) -> Unit = { pkg -> if (pkg == activeController?.packageName) selectActive() }
+    private val playerNotified: (String) -> Unit = { pkg ->
+        when {
+            pkg == activeController?.packageName -> selectActive()
+            // A player we hold no session of put up its notification: its session may be new.
+            boundControllers.none { it.packageName == pkg } && pkg in PlayerNotifications.sessionTokens() -> rescan()
+        }
+    }
     private val appNames = HashMap<String, String?>()
     private var lastUntitledLogged: List<String?>? = null
 
@@ -263,7 +338,29 @@ class CarMediaController(private val context: Context) {
     private val stations = RadioStations()
     private var lastLiveLogged: List<String?>? = null
 
+    /**
+     * Between two songs a player can drop its metadata for a moment (YouTube
+     * Music does, when it skips): the tile vanished and came back. Going from
+     * a song to nothing waits [EMPTY_GRACE_MS] first; anything with media
+     * shows at once.
+     */
+    private var emptySince = 0L
+    private val emptyRecheck = Runnable { selectActive() }
+
     private fun showMedia(state: MediaState) {
+        if (!state.hasMedia && _mediaState.value.hasMedia) {
+            val now = SystemClock.elapsedRealtime()
+            if (emptySince == 0L) {
+                emptySince = now
+                main.postDelayed(emptyRecheck, EMPTY_GRACE_MS)
+                return
+            }
+            if (now - emptySince < EMPTY_GRACE_MS) return
+        }
+        if (emptySince != 0L) {
+            emptySince = 0L
+            main.removeCallbacks(emptyRecheck)
+        }
         _mediaState.value = withStation(state)
     }
 
@@ -301,6 +398,8 @@ class CarMediaController(private val context: Context) {
             if (was != null) main.removeCallbacks(stockTick)
             return false
         }
+        emptySince = 0L
+        main.removeCallbacks(emptyRecheck)
         _mediaState.value = state!!
         return true
     }
@@ -473,6 +572,12 @@ class CarMediaController(private val context: Context) {
 
         /** How often the head unit player's play state and position are read again while it's shown. */
         private const val STOCK_TICK_MS = 1_000L
+
+        /** How often the sessions are listed again, in case the system didn't say they changed. */
+        private const val RESCAN_MS = 5_000L
+
+        /** How long a song shown stays while its player says nothing for a moment ([showMedia]). */
+        private const val EMPTY_GRACE_MS = 2_500L
 
         /** How long a player opened by [playPause] has to publish its session. */
         private const val PENDING_PLAY_MS = 15_000L
