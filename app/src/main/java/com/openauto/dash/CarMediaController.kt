@@ -203,8 +203,8 @@ class CarMediaController(private val context: Context) {
     private fun MediaController.view(): SessionView {
         val pkg = runCatching { packageName }.getOrNull()
         val metadata = runCatching { metadata }.getOrNull()
-        val named = !metadata?.getString(MediaMetadata.METADATA_KEY_TITLE).isNullOrBlank() ||
-            !metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE).isNullOrBlank() ||
+        val named = !isPlaceholderTitle(metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)) ||
+            !isPlaceholderTitle(metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)) ||
             PlayerNotifications.of(pkg) != null
         return SessionView(
             key = sessionToken,
