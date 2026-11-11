@@ -13,6 +13,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.KeyEvent
+import com.openauto.dash.unit.TopwayMedia
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -480,9 +481,17 @@ class CarMediaController(private val context: Context) {
     fun playPause() {
         if (DemoMode.isOn) return DemoMode.playPause()
         stockShown?.let { return HeadUnitMedia.playPause(context, it) }
+        if (topway(if (_mediaState.value.isPlaying) TopwayMedia.Command.PAUSE else TopwayMedia.Command.PLAY)) return
         val controls = activeController?.transportControls ?: return startLastPlayer()
         if (_mediaState.value.isPlaying) controls.pause() else controls.play()
     }
+
+    /**
+     * A Topway unit's Bluetooth app ignores its session's commands: they go through the
+     * firmware's command service instead ([TopwayMedia]). False when that's not the player shown.
+     */
+    private fun topway(command: TopwayMedia.Command): Boolean =
+        TopwayMedia.steers(activeController?.packageName) && TopwayMedia.send(context, command)
 
     /**
      * Whether there is a player to steer directly: a session, or the head
@@ -506,6 +515,7 @@ class CarMediaController(private val context: Context) {
             if (_mediaState.value.isPlaying != play) HeadUnitMedia.playPause(context, it)
             return
         }
+        if (topway(if (play) TopwayMedia.Command.PLAY else TopwayMedia.Command.PAUSE)) return
         val controls = activeController?.transportControls ?: return
         runCatching { if (play) controls.play() else controls.pause() }
     }
@@ -549,12 +559,14 @@ class CarMediaController(private val context: Context) {
     fun next() {
         if (DemoMode.isOn) return DemoMode.next()
         stockShown?.let { return HeadUnitMedia.next(context, it, activeController) }
+        if (topway(TopwayMedia.Command.NEXT)) return
         activeController?.transportControls?.skipToNext()
     }
 
     fun previous() {
         if (DemoMode.isOn) return DemoMode.previous()
         stockShown?.let { return HeadUnitMedia.previous(context, it, activeController) }
+        if (topway(TopwayMedia.Command.PREVIOUS)) return
         activeController?.transportControls?.skipToPrevious()
     }
 
