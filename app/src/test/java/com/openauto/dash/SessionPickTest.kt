@@ -81,6 +81,44 @@ class SessionPickTest {
         assertEquals("bt", choose(s("x", SessionMood.IDLE, meta = false), s("bt", SessionMood.IDLE, meta = false, stock = true)))
     }
 
+    @Test fun `pausing keeps the song over a stale untitled session that says it plays`() {
+        // FYT-style unit: com.tw.bt keeps an "Unknown" session playing for hours.
+        assertEquals("ytm", choose(s("bt", SessionMood.PLAYING, meta = false), s("ytm", SessionMood.PAUSED)))
+        now += 1_000
+        assertEquals("ytm", choose(s("bt", SessionMood.PLAYING, meta = false), s("ytm", SessionMood.PLAYING), shown = "ytm"))
+        now += 30_000
+        assertEquals("ytm", choose(s("bt", SessionMood.PLAYING, meta = false), s("ytm", SessionMood.PAUSED), shown = "ytm"))
+        now += 60_000
+        assertEquals("ytm", choose(s("bt", SessionMood.PLAYING, meta = false), s("ytm", SessionMood.PAUSED), shown = "ytm"))
+    }
+
+    @Test fun `at start a paused song beats an untitled session already playing`() {
+        assertEquals("ytm", choose(s("bt", SessionMood.PLAYING, meta = false), s("ytm", SessionMood.PAUSED)))
+    }
+
+    @Test fun `an untitled player started after the pause still takes the tile`() {
+        assertEquals("ytm", choose(s("x", SessionMood.IDLE, meta = false), s("ytm", SessionMood.PLAYING)))
+        now += 1_000
+        assertEquals("ytm", choose(s("x", SessionMood.IDLE, meta = false), s("ytm", SessionMood.PAUSED), shown = "ytm"))
+        now += 5_000
+        assertEquals("x", choose(s("x", SessionMood.PLAYING, meta = false), s("ytm", SessionMood.PAUSED), shown = "ytm"))
+    }
+
+    @Test fun `real bluetooth music with a title still wins`() {
+        assertEquals("ytm", choose(s("bt", SessionMood.PLAYING, meta = false), s("ytm", SessionMood.PAUSED)))
+        now += 1_000
+        // The phone starts playing over Bluetooth: the unit's session gets the track's title.
+        assertEquals("bt", choose(s("bt", SessionMood.PLAYING), s("ytm", SessionMood.PAUSED), shown = "ytm"))
+    }
+
+    @Test fun `placeholder titles name nothing`() {
+        assertEquals(true, isPlaceholderTitle("Unknown"))
+        assertEquals(true, isPlaceholderTitle(" unknown "))
+        assertEquals(true, isPlaceholderTitle("<unknown>"))
+        assertEquals(true, isPlaceholderTitle(null))
+        assertEquals(false, isPlaceholderTitle("Unknown Pleasures"))
+    }
+
     @Test fun `playback states map to moods`() {
         assertEquals(SessionMood.PLAYING, SessionMood.of(PlaybackState.STATE_PLAYING))
         assertEquals(SessionMood.BETWEEN, SessionMood.of(PlaybackState.STATE_BUFFERING))
