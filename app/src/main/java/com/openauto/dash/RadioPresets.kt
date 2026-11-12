@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.content.ContextCompat
+import com.openauto.dash.unit.TopwayRadio
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.Dispatchers
@@ -98,7 +99,28 @@ internal object RadioPresets {
     /** The radio's band from its last broadcast: 0..2 FM1..FM3, 3 AM, -1 not heard yet. */
     @Volatile private var band = -1
 
-    fun installed(context: Context): Boolean = isPackageInstalled(context, PACKAGE)
+    fun installed(context: Context): Boolean = isPackageInstalled(context, PACKAGE) || TopwayRadio.present(context)
+
+    /** A Topway unit's radio ([TopwayRadio]): its presets and station from the MCU, its buttons through the firmware. */
+    private fun topway(context: Context): Boolean = !isPackageInstalled(context, PACKAGE) && TopwayRadio.present(context)
+
+    private var topwayFeed: kotlinx.coroutines.Job? = null
+
+    /** Topway's presets and station, as the tile shows a radio's: FM ones only, as for the QF radio. */
+    private fun followTopway(context: Context) {
+        TopwayRadio.start(context)
+        if (topwayFeed?.isActive == true) return
+        topwayFeed = scope.launch {
+            launch {
+                TopwayRadio.presets.collect { list ->
+                    _stations.value = list.filter { isFm(it.freq) }.map { RadioStation(it.freq, it.name) }.take(SHOWN)
+                }
+            }
+            TopwayRadio.station.collect { s ->
+                _playing.value = s?.takeIf { isFm(it.freq) }?.let { RadioStation(it.freq, it.name.orEmpty()) }
+            }
+        }
+    }
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -113,6 +135,11 @@ internal object RadioPresets {
 
     fun start(context: Context) {
         val app = context.applicationContext
+        if (topway(app)) {
+            users++
+            followTopway(app)
+            return
+        }
         if (users++ == 0) ContextCompat.registerReceiver(app, receiver, IntentFilter(UPDATE), ContextCompat.RECEIVER_EXPORTED)
         scope.launch { _stations.value = withContext(Dispatchers.IO) { read(app) } }
         if (_playing.value == null) {
@@ -122,6 +149,8 @@ internal object RadioPresets {
 
     fun stop(context: Context) {
         if (users == 0 || --users > 0) return
+        // Topway's radio feed stays: TopwayRadio runs for the media tile anyway.
+        if (topway(context)) return
         runCatching { context.applicationContext.unregisterReceiver(receiver) }
     }
 
@@ -158,7 +187,16 @@ internal object RadioPresets {
             .map { it.first }.distinctBy { it.freq }.take(SHOWN)
     }.onFailure { Log.w(TAG, "stations unread: ${it.message}") }.getOrDefault(emptyList())
 
-    fun tune(context: Context, station: RadioStation) = command(context) { app ->
+    fun tune(context: Context, station: RadioStation) {
+        if (topway(context)) {
+            TopwayRadio.tune(context, station.freq)
+            _playing.value = station
+            return
+        }
+        tuneQf(context, station)
+    }
+
+    private fun tuneQf(context: Context, station: RadioStation) = command(context) { app ->
         // The radio tunes the string on the band it is on ("10.0" became 999 kHz on AM):
         // stepped to FM first, each step awaited in its own broadcast.
         var steps = 0
@@ -171,8 +209,10 @@ internal object RadioPresets {
         _playing.value = station
     }
 
-    fun next(context: Context) = command(context) { it.sendBroadcast(Intent(NEXT)) }
-    fun previous(context: Context) = command(context) { it.sendBroadcast(Intent(PREVIOUS)) }
+    // On Topway's radio the tile's arrows seek (the next station that broadcasts): its presets are a tap away
+    // already, and the media tile's arrows step through them.
+    fun next(context: Context) { if (topway(context)) TopwayRadio.seekUp(context) else command(context) { it.sendBroadcast(Intent(NEXT)) } }
+    fun previous(context: Context) { if (topway(context)) TopwayRadio.seekDown(context) else command(context) { it.sendBroadcast(Intent(PREVIOUS)) } }
 
     /** [send] once the radio's screen is alive: started first when it isn't, and the dashboard brought back over it. */
     private fun command(context: Context, send: suspend (Context) -> Unit) {
