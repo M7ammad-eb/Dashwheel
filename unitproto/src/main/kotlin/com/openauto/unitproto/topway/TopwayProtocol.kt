@@ -68,6 +68,47 @@ object TopwayProtocol {
     /** The Bluetooth app whose session takes no command ([COMMAND_PACKAGE] steers it). */
     const val BT_PACKAGE = "com.tw.bt"
 
+    // --- The radio (com.tw.radio 78cc, read from its bytecode) -----------------------------
+    //
+    // It publishes no media session on this firmware: what it plays comes from the MCU, the
+    // way the unit's own media bar (SystemUI) reads it, and its buttons go through the
+    // command service, which hands them to the radio app.
+
+    const val RADIO_PACKAGE = "com.tw.radio"
+    /** The unit's audio source: arg1 the source, [SOURCE_RADIO] for the tuner, 8 for Bluetooth. */
+    const val CH_SOURCE = 0x301
+    const val SOURCE_RADIO = 1
+    /** The tuner: arg1 the field, arg2 its value, obj the station's RDS name on [TUNER_FREQ]. */
+    const val CH_TUNER = 0x401
+    const val TUNER_BAND = 1
+    /** In 10 kHz on FM (9800 = 98.00 MHz), kHz on AM. */
+    const val TUNER_FREQ = 2
+    /** The preset playing, -1 for none. */
+    const val TUNER_PRESET = 4
+    /** One preset: arg1's low byte its slot, arg2 its frequency, obj its RDS name. */
+    const val CH_PRESET = 0x402
+    /** The station's RDS text (obj). */
+    const val CH_RDS_TEXT = 0x405
+    /** The tuner's band numbers: 0 FM1, 1 FM2, 2 AM. */
+    const val TUNER_AM = 2
+    /** Written to [CH_TUNER] alone, it asks the MCU for the tuner's state again, as the radio app does when it opens. */
+    const val ASK_AGAIN = 255
+    /** The radio's play/pause key, as its own media button handler sends it: [CH_KEY], 1, [KEY_PLAY_PAUSE]. */
+    const val CH_KEY = 0x201
+    const val KEY_PLAY_PAUSE = 20
+    val RADIO_LISTENED = shortArrayOf(CH_SOURCE.toShort(), CH_TUNER.toShort(), CH_PRESET.toShort(), CH_RDS_TEXT.toShort())
+
+    /** ITWCommandAidl's radio transactions, handed to the radio app by the service. */
+    const val TX_RADIO_NEXT = 11
+    const val TX_RADIO_PREVIOUS = 12
+    const val TX_RADIO_SEEK_UP = 13
+    const val TX_RADIO_SEEK_DOWN = 14
+    /** One int: the frequency in the tuner's units. */
+    const val TX_RADIO_TUNE = 15
+
+    /** The tuner's band as Dashwheel numbers them (0..2 FM1..FM3, 3..5 AM1..AM3). */
+    fun dashBand(tunerBand: Int): Int = if (tunerBand == TUNER_AM) 3 else tunerBand.coerceIn(0, 2)
+
     /** The car info service ([INFO_PACKAGE]), exported, its permission a normal one: bound like the car app binds it. */
     const val INFO_PACKAGE = "com.tw.carinfoservice"
     const val INFO_BIND_ACTION = "com.tw.carinfoservice.CarService.Bind"
