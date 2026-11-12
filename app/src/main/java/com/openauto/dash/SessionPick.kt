@@ -19,10 +19,12 @@ import android.media.session.PlaybackState
  * was shown stays, else the one that played last. A stopped session is shown
  * only when it was the one on screen already, or is the last media app used.
  *
- * A session "playing" with nothing to show (no title, or only "Unknown") that
- * already played before the paused song on screen stopped doesn't take its
- * place: a FYT-style unit's Bluetooth app keeps one such session playing for
- * hours, and pausing YouTube Music put "Unknown" in the tile.
+ * Paused, the song played last stays: a session that says it plays but
+ * already did before that song stopped doesn't take its place, title or not.
+ * A Topway unit's Bluetooth app keeps several sessions "playing" for hours
+ * (one "Unknown", others with an old track), and pausing YouTube Music put
+ * them in the tile. Only a session that starts afterwards, or goes on to
+ * another song, takes over.
  */
 
 /** What a session is doing, as far as picking one goes. */
@@ -61,7 +63,9 @@ internal data class SessionView(
     /** Has a title (or any metadata) to show. */
     val hasMetadata: Boolean,
     /** One of the head unit's own players, which publish an empty session (HeadUnitMedia). */
-    val stock: Boolean = false
+    val stock: Boolean = false,
+    /** The title it names now, or null: a new one counts as the session starting again. */
+    val track: String? = null
 )
 
 /**
@@ -81,6 +85,9 @@ internal class SessionPick(private val clock: () -> Long) {
     /** Every session seen so far, and those already active when first seen (never seen starting). */
     private val seen = HashSet<Any>()
     private val activeWhenFirstSeen = HashSet<Any>()
+    /** Session key → the title it named last time. */
+    private val tracks = HashMap<Any, String?>()
+    private var firstLook = true
 
     /** Notes what every session does now; call before [pick] with the same list. */
     fun observe(sessions: List<SessionView>) {
@@ -93,10 +100,19 @@ internal class SessionPick(private val clock: () -> Long) {
         lastPlaying.keys.retainAll(keys)
         seen.retainAll(keys)
         activeWhenFirstSeen.retainAll(keys)
+        tracks.keys.retainAll(keys)
         for (s in sessions) {
-            if (seen.add(s.key) && s.mood.active) activeWhenFirstSeen += s.key
+            val known = !seen.add(s.key)
+            // Playing already when Dashwheel first looked: never seen starting. One showing up later is new.
+            if (!known && firstLook && s.mood.active) activeWhenFirstSeen += s.key
+            val newTrack = known && s.track != null && tracks[s.key] != s.track
+            tracks[s.key] = s.track
             if (s.mood.active) {
-                if (s.key !in wasActive) activeSince[s.key] = now
+                // Starting to play, or going on to another song, is a start.
+                if (s.key !in wasActive || newTrack) {
+                    activeSince[s.key] = now
+                    if (newTrack) activeWhenFirstSeen -= s.key
+                }
                 lastActive[s.key] = now
                 if (s.mood == SessionMood.PLAYING) lastPlaying[s.key] = now
                 wasActive += s.key
@@ -106,6 +122,7 @@ internal class SessionPick(private val clock: () -> Long) {
                 activeWhenFirstSeen -= s.key
             }
         }
+        firstLook = false
     }
 
     /**
@@ -122,11 +139,15 @@ internal class SessionPick(private val clock: () -> Long) {
         // A paused song to fall back on: the one on screen, else the one that played last.
         val pausedSong = sessions.firstOrNull { it.key == shown && it.mood == SessionMood.PAUSED && it.hasMetadata }
             ?: sessions.filter { it.mood == SessionMood.PAUSED && it.hasMetadata }.maxByOrNull { lastActive[it.key] ?: Long.MIN_VALUE }
-        // A session "playing" with nothing to show doesn't take its place unless it started after
-        // that song last played: one already playing when first seen, or since before, is stale.
-        // Never the one on screen: untitled for a moment is a song change (YouTube Music skipping).
-        fun staleBeside(s: SessionView): Boolean = pausedSong != null && s.key != shown && !s.hasMetadata && !s.stock &&
-            (s.key in activeWhenFirstSeen || (activeSince[s.key] ?: Long.MIN_VALUE) <= (lastActive[pausedSong.key] ?: Long.MIN_VALUE))
+        // The song played last keeps the tile when paused: a session "playing" since before it
+        // last played (a unit's Bluetooth app keeps old ones playing for hours, title and all)
+        // doesn't take its place; only one that starts after it, or goes on to another song,
+        // does. Before that song was ever seen playing, only an untitled one already playing
+        // when Dashwheel first looked counts as stale: a song playing at start-up still wins.
+        val pausedPlayed = pausedSong?.let { lastActive[it.key] }
+        fun staleBeside(s: SessionView): Boolean = pausedSong != null && !s.stock && s.key != pausedSong.key && (
+            (!s.hasMetadata && s.key in activeWhenFirstSeen) ||
+                (pausedPlayed != null && (activeSince[s.key] ?: Long.MIN_VALUE) <= pausedPlayed))
         sessions.filter { it.mood.active }
             .filterNot { anyPlaying && it.mood == SessionMood.BETWEEN && now - (lastPlaying[it.key] ?: activeSince[it.key] ?: now) > STALL_MS }
             .filterNot(::staleBeside)
