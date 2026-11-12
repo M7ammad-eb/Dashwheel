@@ -145,7 +145,8 @@ internal class SessionPick(private val clock: () -> Long) {
         // does. Before that song was ever seen playing, only an untitled one already playing
         // when Dashwheel first looked counts as stale: a song playing at start-up still wins.
         val pausedPlayed = pausedSong?.let { lastActive[it.key] }
-        fun staleBeside(s: SessionView): Boolean = pausedSong != null && !s.stock && s.key != pausedSong.key && (
+        // The one on screen is never stale: YouTube Music between two songs is untitled for a moment.
+        fun staleBeside(s: SessionView): Boolean = pausedSong != null && !s.stock && s.key != pausedSong.key && s.key != shown && (
             (!s.hasMetadata && s.key in activeWhenFirstSeen) ||
                 (pausedPlayed != null && (activeSince[s.key] ?: Long.MIN_VALUE) <= pausedPlayed))
         sessions.filter { it.mood.active }
