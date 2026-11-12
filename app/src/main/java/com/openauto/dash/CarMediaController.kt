@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.KeyEvent
 import com.openauto.dash.unit.TopwayMedia
+import com.openauto.dash.unit.TopwayRadio
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -388,6 +389,10 @@ class CarMediaController(private val context: Context) {
 
     private fun publishStock(controller: MediaController?): Boolean {
         val pkg = when {
+            // A Topway unit's radio has no session: it shows while it is the unit's source and no app plays.
+            // Its Bluetooth app's sessions say they play for hours: with the radio the source, they don't.
+            TopwayRadio.isSource.value && (controller?.playbackState?.state != PlaybackState.STATE_PLAYING ||
+                TopwayMedia.steers(controller?.packageName)) -> HeadUnitMedia.TOPWAY_RADIO
             controller != null -> controller.packageName?.takeIf {
                 HeadUnitMedia.isStock(it) && controller.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE).isNullOrBlank()
             }
