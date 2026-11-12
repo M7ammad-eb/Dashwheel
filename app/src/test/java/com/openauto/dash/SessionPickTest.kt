@@ -10,8 +10,8 @@ class SessionPickTest {
     private var now = 1_000L
     private val pick = SessionPick { now }
 
-    private fun s(key: String, mood: SessionMood, meta: Boolean = true, stock: Boolean = false) =
-        SessionView(key, key, mood, meta, stock)
+    private fun s(key: String, mood: SessionMood, meta: Boolean = true, stock: Boolean = false, track: String? = if (meta) "song-$key" else null) =
+        SessionView(key, key, mood, meta, stock, track)
 
     private fun choose(vararg sessions: SessionView, shown: String? = null, last: String? = null): String? {
         val list = sessions.toList()
@@ -109,6 +109,24 @@ class SessionPickTest {
         now += 1_000
         // The phone starts playing over Bluetooth: the unit's session gets the track's title.
         assertEquals("bt", choose(s("bt", SessionMood.PLAYING), s("ytm", SessionMood.PAUSED), shown = "ytm"))
+    }
+
+    @Test fun `pausing keeps the song over an old titled session that says it plays`() {
+        // Topway unit: a com.tw.bt session keeps "playing" an old track for hours.
+        choose(s("bt", SessionMood.PLAYING), s("ytm", SessionMood.PAUSED))
+        now += 1_000
+        assertEquals("ytm", choose(s("bt", SessionMood.PLAYING), s("ytm", SessionMood.PLAYING)))
+        now += 30_000
+        assertEquals("ytm", choose(s("bt", SessionMood.PLAYING), s("ytm", SessionMood.PAUSED), shown = "ytm"))
+        now += 60_000
+        assertEquals("ytm", choose(s("bt", SessionMood.PLAYING), s("ytm", SessionMood.PAUSED), shown = "ytm"))
+        // The phone goes on to another song over Bluetooth: that is a start, and it takes the tile.
+        now += 1_000
+        assertEquals("bt", choose(s("bt", SessionMood.PLAYING, track = "next song"), s("ytm", SessionMood.PAUSED), shown = "ytm"))
+    }
+
+    @Test fun `a song playing at start-up beats a paused one never seen playing`() {
+        assertEquals("bt", choose(s("bt", SessionMood.PLAYING), s("ytm", SessionMood.PAUSED)))
     }
 
     @Test fun `placeholder titles name nothing`() {
