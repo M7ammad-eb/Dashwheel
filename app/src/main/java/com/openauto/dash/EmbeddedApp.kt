@@ -1806,10 +1806,13 @@ internal object EmbeddedApp {
             }
             // A stack left empty when the app's process ended is not the app: taken for
             // it on the tile, the tile kept its last picture and the app was never started again.
-            for (stack in all) if (stack.empty) {
+            // Removed only while the app has no window left anywhere: removing a task is what a
+            // swipe out of Recents does, and an app still running on its tile takes it as being
+            // closed. YouTube stopped its video each time the dashboard came back to its page.
+            var found: List<WindowListing.AppStack> = all.filterNot { it.empty }
+            if (found.isEmpty()) for (stack in all) if (stack.empty) {
                 shell("am stack remove ${stack.stackId}", "$packageName stack ${stack.stackId} on display ${stack.displayId} left empty, closed")
             }
-            var found: List<WindowListing.AppStack> = all.filterNot { it.empty }
             if (runningTwice(found, id)) {
                 // Moved onto the tile beside the first, the second copy would only hide
                 // it, both still broken: the app is closed, then opened once, on the tile.
