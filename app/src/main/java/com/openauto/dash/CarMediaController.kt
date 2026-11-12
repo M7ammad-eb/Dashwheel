@@ -212,7 +212,9 @@ class CarMediaController(private val context: Context) {
             pkg = pkg,
             mood = SessionMood.of(runCatching { playbackState?.state }.getOrNull()),
             hasMetadata = named,
-            stock = HeadUnitMedia.isStock(pkg)
+            stock = HeadUnitMedia.isStock(pkg),
+            track = (metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE))
+                ?.takeUnless(::isPlaceholderTitle)
         )
     }
 
