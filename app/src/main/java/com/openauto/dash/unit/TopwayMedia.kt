@@ -27,25 +27,31 @@ internal object TopwayMedia {
         PLAY(TopwayProtocol.TX_MEDIA_PLAY),
         PAUSE(TopwayProtocol.TX_MEDIA_PAUSE),
         NEXT(TopwayProtocol.TX_MEDIA_NEXT),
-        PREVIOUS(TopwayProtocol.TX_MEDIA_PREVIOUS)
+        PREVIOUS(TopwayProtocol.TX_MEDIA_PREVIOUS),
+        /** The radio: next / previous station, seek, tune ([send]'s value: the frequency). */
+        RADIO_NEXT(TopwayProtocol.TX_RADIO_NEXT),
+        RADIO_PREVIOUS(TopwayProtocol.TX_RADIO_PREVIOUS),
+        RADIO_SEEK_UP(TopwayProtocol.TX_RADIO_SEEK_UP),
+        RADIO_SEEK_DOWN(TopwayProtocol.TX_RADIO_SEEK_DOWN),
+        RADIO_TUNE(TopwayProtocol.TX_RADIO_TUNE)
     }
 
     private var service: IBinder? = null
     private var binding = false
     private var unavailable = false
-    private var pending: Command? = null
+    private var pending: Pair<Command, Int?>? = null
     private var app: Context? = null
 
     /** Whether [pkg]'s player is one only the command service steers. */
     fun steers(pkg: String?): Boolean = pkg == TopwayProtocol.BT_PACKAGE
 
-    /** Sends [command]; false when the unit has no command service, so the caller falls back. */
+    /** Sends [command] ([value]: its one int, for [Command.RADIO_TUNE]); false when the unit has no command service. */
     @Synchronized
-    fun send(context: Context, command: Command): Boolean {
+    fun send(context: Context, command: Command, value: Int? = null): Boolean {
         if (unavailable) return false
         val binder = service
-        if (binder != null && binder.isBinderAlive) return transact(binder, command)
-        pending = command
+        if (binder != null && binder.isBinderAlive) return transact(binder, command, value)
+        pending = command to value
         if (!binding) bind(context.applicationContext)
         return !unavailable
     }
@@ -71,7 +77,7 @@ internal object TopwayMedia {
                 pending.also { pending = null }
             }
             app?.let { DebugLog.note(it, "Topway media: command service bound") }
-            next?.let { transact(binder, it) }
+            next?.let { (command, value) -> transact(binder, command, value) }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -79,11 +85,12 @@ internal object TopwayMedia {
         }
     }
 
-    private fun transact(binder: IBinder, command: Command): Boolean {
+    private fun transact(binder: IBinder, command: Command, value: Int?): Boolean {
         val data = Parcel.obtain()
         val reply = Parcel.obtain()
         return try {
             data.writeInterfaceToken(TopwayProtocol.COMMAND_DESCRIPTOR)
+            if (value != null) data.writeInt(value)
             binder.transact(command.tx, data, reply, 0)
             reply.readException()
             true
