@@ -2,9 +2,14 @@ package com.openauto.dash.unit
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.Message
+import android.util.Log
 import com.openauto.dash.DebugLog
+import com.openauto.dash.HiddenApi
 import com.openauto.dash.UnitPlatform
+import java.lang.reflect.Method
 import com.openauto.unitproto.topway.TopwayProtocol
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,8 +50,14 @@ internal object TopwayRadio {
     fun addListener(listener: () -> Unit) = listeners.add(listener)
     fun removeListener(listener: () -> Unit) = listeners.remove(listener)
 
-    /** The radio's messages, on the MCU link it shares with [TopwayBus]. */
-    private val radioUser: (Message) -> Unit = { onMessage(it) }
+    // The tuner's own TWUtil link (device [TopwayProtocol.RADIO_DEVICE]), as the radio app opens it:
+    // on the general MCU link ([TopwayLink]) its channels came as raw frames, never a station.
+    private var tw: Any? = null
+    private var writer2: Method? = null
+    private var writer3: Method? = null
+    private var thread: HandlerThread? = null
+    /** Kinds of message noted once each (channel and arg1), a few dozen at most. */
+    private val heard = java.util.Collections.synchronizedSet(HashSet<Int>())
 
     @Synchronized
     fun start(context: Context) {
@@ -54,14 +65,47 @@ internal object TopwayRadio {
         started = true
         val app = context.applicationContext
         this.app = app
-        // One MCU link per app ([TopwayLink]): a second one of the radio's own heard nothing.
-        if (!TopwayLink.acquire(app, radioUser)) return
-        // The MCU speaks only when something changes: asked for the source and the tuner's state,
-        // as the radio app does on opening, so a radio already playing shows at once.
-        TopwayLink.write(TopwayProtocol.CH_SOURCE, TopwayProtocol.ASK_AGAIN)
-        TopwayLink.write(TopwayProtocol.CH_TUNER, TopwayProtocol.ASK_AGAIN)
-        DebugLog.note(app, "Topway radio: listening on the MCU link")
+        val t = HandlerThread("TopwayRadio").also { it.start() }
+        val handler = Handler(t.looper) { msg ->
+            if (heard.size < 40 && heard.add(msg.what * 1000 + (msg.arg1 and 0xFF))) {
+                DebugLog.note(app, "Topway radio: 0x${Integer.toHexString(msg.what)} arg1 ${msg.arg1} arg2 ${msg.arg2} obj ${(msg.obj as? String) ?: msg.obj?.javaClass?.simpleName}")
+            }
+            onMessage(msg)
+            true
+        }
+        runCatching {
+            val cls = Class.forName(TopwayProtocol.TWUTIL_CLASS)
+            val int = Int::class.javaPrimitiveType!!
+            val util = runCatching { cls.getConstructor(int).newInstance(TopwayProtocol.RADIO_DEVICE) }
+                .getOrElse { cls.getDeclaredConstructor(int).apply { isAccessible = true }.newInstance(TopwayProtocol.RADIO_DEVICE) }
+            val opened = method(cls, "open", ShortArray::class.java).invoke(util, TopwayProtocol.RADIO_LISTENED) as Int
+            if (opened != 0) error("open answered $opened")
+            method(cls, "start").invoke(util)
+            method(cls, "addHandler", String::class.java, Handler::class.java).invoke(util, "DashwheelRadio", handler)
+            writer2 = runCatching { method(cls, "write", int, int) }.getOrNull()
+            writer3 = runCatching { method(cls, "write", int, int, int) }.getOrNull()
+            tw = util
+            thread = t
+            // The MCU speaks only when something changes: asked for the source and the tuner's state,
+            // as the radio app does on opening, so a radio already playing shows at once.
+            write(TopwayProtocol.CH_SOURCE, TopwayProtocol.ASK_AGAIN)
+            write(TopwayProtocol.CH_TUNER, TopwayProtocol.ASK_AGAIN)
+            DebugLog.note(app, "Topway radio: listening on the tuner's link (device ${TopwayProtocol.RADIO_DEVICE})")
+        }.onFailure {
+            Log.w("TopwayRadio", "the tuner's link refused", it)
+            DebugLog.note(app, "Topway radio: the tuner's link refused (${it.cause ?: it})")
+            t.quitSafely()
+        }
     }
+
+    private fun write(what: Int, arg1: Int, arg2: Int? = null) {
+        val util = tw ?: return
+        runCatching { if (arg2 == null) writer2?.invoke(util, what, arg1) else writer3?.invoke(util, what, arg1, arg2) }
+            .onFailure { Log.w("TopwayRadio", "write $what not made", it) }
+    }
+
+    private fun method(cls: Class<*>, name: String, vararg types: Class<*>): Method =
+        runCatching { cls.getMethod(name, *types) }.getOrElse { HiddenApi.getDeclaredMethod(cls, name, *types) }
 
     private var app: Context? = null
 
@@ -117,7 +161,7 @@ internal object TopwayRadio {
     /** The radio's own play/pause key (it mutes and unmutes the tuner); opens the radio when it isn't the source. */
     fun playPause(context: Context) {
         if (!_isSource.value) return open(context)
-        TopwayLink.write(TopwayProtocol.CH_KEY, 1, TopwayProtocol.KEY_PLAY_PAUSE)
+        write(TopwayProtocol.CH_KEY, 1, TopwayProtocol.KEY_PLAY_PAUSE)
     }
 
     /** The radio app takes the service's commands only while it is the source: opened first otherwise. */
