@@ -209,9 +209,10 @@ internal object RadioPresets {
         _playing.value = station
     }
 
-    // On Topway's radio the arrows step through the presets, as its own buttons do.
-    fun next(context: Context) { if (topway(context)) TopwayRadio.next(context) else command(context) { it.sendBroadcast(Intent(NEXT)) } }
-    fun previous(context: Context) { if (topway(context)) TopwayRadio.previous(context) else command(context) { it.sendBroadcast(Intent(PREVIOUS)) } }
+    // On Topway's radio the tile's arrows seek (the next station that broadcasts): its presets are a tap away,
+    // and the media tile's arrows step through them.
+    fun next(context: Context) { if (topway(context)) TopwayRadio.seekUp(context) else command(context) { it.sendBroadcast(Intent(NEXT)) } }
+    fun previous(context: Context) { if (topway(context)) TopwayRadio.seekDown(context) else command(context) { it.sendBroadcast(Intent(PREVIOUS)) } }
 
     /** [send] once the radio's screen is alive: started first when it isn't, and the dashboard brought back over it. */
     private fun command(context: Context, send: suspend (Context) -> Unit) {
