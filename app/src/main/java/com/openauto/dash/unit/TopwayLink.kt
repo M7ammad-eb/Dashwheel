@@ -12,13 +12,9 @@ import java.lang.reflect.Method
 import java.util.concurrent.CopyOnWriteArraySet
 
 /**
- * The one TWUtil link to a Topway unit's MCU that Dashwheel opens, shared by
- * [TopwayBus] (reverse, canbox) and [TopwayRadio] (tuner, presets, source).
- *
- * The framework keeps one link per app: opened twice, the later open took the
- * messages and the radio, opened first, never heard a station while the unit's
- * own media bar did. So every channel is opened at once, here, and each message
- * handed to every user, who keeps the channels it reads.
+ * Dashwheel's TWUtil link to a Topway unit's general MCU device ([TopwayBus]:
+ * reverse, canbox), opened once and handed to every user. The tuner is another
+ * device, with its own link ([TopwayRadio]).
  */
 internal object TopwayLink {
     private const val TAG = "TopwayLink"
@@ -30,8 +26,8 @@ internal object TopwayLink {
     private var writer3: Method? = null
     private var thread: HandlerThread? = null
 
-    /** Every channel Dashwheel reads, opened in one go. */
-    private val CHANNELS: ShortArray = (TopwayProtocol.LISTENED.toList() + TopwayProtocol.RADIO_LISTENED.toList()).distinct().toShortArray()
+    /** The general MCU device's channels Dashwheel reads. The tuner's are on its own device ([TopwayRadio]). */
+    private val CHANNELS: ShortArray = TopwayProtocol.LISTENED
 
     /** [user] gets every message from now on (on the link's own thread); false when the unit refused the link. */
     @Synchronized
@@ -84,7 +80,7 @@ internal object TopwayLink {
             writer3 = runCatching { method(cls, "write", int, int, int) }.getOrNull()
             tw = util
             thread = t
-            DebugLog.note(app, "Topway MCU: one link for ${CHANNELS.size} channels (reverse, canbox, radio)")
+            DebugLog.note(app, "Topway MCU: listening through TWUtil (reverse, canbox frames)")
         }.onFailure {
             Log.w(TAG, "TWUtil is not there for Dashwheel", it)
             DebugLog.note(app, "Topway MCU: TWUtil refused (${it.cause ?: it})")
