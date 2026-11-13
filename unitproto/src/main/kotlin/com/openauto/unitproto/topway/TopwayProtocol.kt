@@ -75,6 +75,12 @@ object TopwayProtocol {
     // command service, which hands them to the radio app.
 
     const val RADIO_PACKAGE = "com.tw.radio"
+    /**
+     * TWUtil's device for the tuner: the radio app opens `TWUtil(1)`. Opened without one
+     * (the general MCU device, [TopwayBus]'s), the tuner's channels only bring raw frames,
+     * never the decoded frequency and presets below.
+     */
+    const val RADIO_DEVICE = 1
     /** The unit's audio source: arg1 the source, [SOURCE_RADIO] for the tuner, 8 for Bluetooth. */
     const val CH_SOURCE = 0x301
     const val SOURCE_RADIO = 1
