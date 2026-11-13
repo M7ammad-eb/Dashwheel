@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+# A newer push cancels the build still running for the branch: only the latest matters.
+concurrency:
+  group: debug-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   debug-apk:
     runs-on: ubuntu-latest
