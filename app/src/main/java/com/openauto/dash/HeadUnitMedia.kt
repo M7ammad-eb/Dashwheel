@@ -195,11 +195,13 @@ object HeadUnitMedia {
             )
         }
         pkg == TOPWAY_RADIO -> TopwayRadio.station.value?.let { s ->
-            val r = RadioStation(s.freq, TopwayProtocol.dashBand(s.band), s.name)
+            // The station's RDS name, else its preset's: tuned other than by its preset, the name may not come.
+            val name = s.name ?: TopwayRadio.presetName(s.freq)
+            val r = RadioStation(s.freq, TopwayProtocol.dashBand(s.band), name)
             val frequency = radioLabel(r)
             MediaState(
-                title = s.name ?: frequency,
-                artist = s.text ?: listOfNotNull(s.name?.let { frequency }, bandLabel(r.band)).joinToString(" · "),
+                title = name ?: frequency,
+                artist = s.text ?: listOfNotNull(name?.let { frequency }, bandLabel(r.band)).joinToString(" · "),
                 isPlaying = TopwayRadio.isSource.value,
                 hasMedia = true
             )
