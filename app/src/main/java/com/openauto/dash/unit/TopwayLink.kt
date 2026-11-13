@@ -56,9 +56,20 @@ internal object TopwayLink {
         }.onFailure { Log.w(TAG, "write $what not made", it) }.getOrDefault(false)
     }
 
+    /** Channels a first message came on: noted once each, so the log says what the MCU really sends Dashwheel. */
+    private val heard = java.util.Collections.synchronizedSet(HashSet<Int>())
+    private var appContext: Context? = null
+
     private fun open(app: Context) {
+        appContext = app
         val t = HandlerThread(TAG).also { it.start() }
-        val handler = Handler(t.looper) { msg -> users.forEach { runCatching { it(msg) } }; true }
+        val handler = Handler(t.looper) { msg ->
+            if (heard.add(msg.what)) appContext?.let {
+                DebugLog.note(it, "Topway MCU: first message on 0x${Integer.toHexString(msg.what)} (arg1 ${msg.arg1}, arg2 ${msg.arg2})")
+            }
+            users.forEach { runCatching { it(msg) } }
+            true
+        }
         runCatching {
             val cls = Class.forName(TopwayProtocol.TWUTIL_CLASS)
             val util = runCatching { cls.getConstructor().newInstance() }.getOrElse { HiddenApi.newInstance(cls) }
