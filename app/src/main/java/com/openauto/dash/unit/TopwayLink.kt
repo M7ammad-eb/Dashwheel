@@ -58,14 +58,16 @@ internal object TopwayLink {
 
     /** Channels a first message came on: noted once each, so the log says what the MCU really sends Dashwheel. */
     private val heard = java.util.Collections.synchronizedSet(HashSet<Int>())
+    private const val MAX_NOTED = 60
     private var appContext: Context? = null
 
     private fun open(app: Context) {
         appContext = app
         val t = HandlerThread(TAG).also { it.start() }
         val handler = Handler(t.looper) { msg ->
-            if (heard.add(msg.what)) appContext?.let {
-                DebugLog.note(it, "Topway MCU: first message on 0x${Integer.toHexString(msg.what)} (arg1 ${msg.arg1}, arg2 ${msg.arg2})")
+            // Each kind of message (channel and arg1) once, a few dozen at most: what the MCU sends Dashwheel, in the log.
+            if (heard.size < MAX_NOTED && heard.add(msg.what * 1000 + (msg.arg1 and 0xFF))) appContext?.let {
+                DebugLog.note(it, "Topway MCU: 0x${Integer.toHexString(msg.what)} arg1 ${msg.arg1} arg2 ${msg.arg2} obj ${(msg.obj as? String) ?: msg.obj?.javaClass?.simpleName}")
             }
             users.forEach { runCatching { it(msg) } }
             true
