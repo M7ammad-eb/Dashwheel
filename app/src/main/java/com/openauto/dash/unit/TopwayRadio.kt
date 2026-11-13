@@ -53,6 +53,7 @@ internal object TopwayRadio {
         if (started || !present(context)) return
         started = true
         val app = context.applicationContext
+        this.app = app
         // One MCU link per app ([TopwayLink]): a second one of the radio's own heard nothing.
         if (!TopwayLink.acquire(app, radioUser)) return
         // The MCU speaks only when something changes: asked for the source and the tuner's state,
@@ -62,9 +63,15 @@ internal object TopwayRadio {
         DebugLog.note(app, "Topway radio: listening on the MCU link")
     }
 
+    private var app: Context? = null
+
     private fun onMessage(msg: Message) {
         when (msg.what) {
-            TopwayProtocol.CH_SOURCE -> set(_isSource, msg.arg1 == TopwayProtocol.SOURCE_RADIO)
+            TopwayProtocol.CH_SOURCE -> {
+                val radio = msg.arg1 == TopwayProtocol.SOURCE_RADIO
+                if (radio != _isSource.value) app?.let { DebugLog.note(it, "Topway radio: source ${msg.arg1}, the radio ${if (radio) "plays" else "stopped"}") }
+                set(_isSource, radio)
+            }
             TopwayProtocol.CH_TUNER -> {
                 val was = _station.value ?: Station(0, 0, null, null, -1)
                 val now = when (msg.arg1) {
@@ -76,6 +83,7 @@ internal object TopwayRadio {
                     TopwayProtocol.TUNER_PRESET -> was.copy(preset = msg.arg2)
                     else -> return
                 }
+                if (now.freq > 0 && now.freq != _station.value?.freq) app?.let { DebugLog.note(it, "Topway radio: station ${now.freq}, band ${now.band}") }
                 if (now.freq > 0) set(_station, now)
             }
             TopwayProtocol.CH_PRESET -> {
