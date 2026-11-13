@@ -151,12 +151,41 @@ internal object TopwayRadio {
 
     // --- Its buttons -----------------------------------------------------------------------
 
-    /** Next / previous station (the radio steps through its presets). */
-    fun next(context: Context) = command(context, TopwayMedia.Command.RADIO_NEXT)
-    fun previous(context: Context) = command(context, TopwayMedia.Command.RADIO_PREVIOUS)
+    /**
+     * Next / previous preset, in slot order and round, as the radio app's own buttons do: it
+     * selects the slot ([selectPreset]). The service's "next" only stepped the frequency.
+     * With no preset heard yet, the service's step is all there is.
+     */
+    fun next(context: Context) = stepPreset(context, +1) ?: command(context, TopwayMedia.Command.RADIO_NEXT)
+    fun previous(context: Context) = stepPreset(context, -1) ?: command(context, TopwayMedia.Command.RADIO_PREVIOUS)
     fun seekUp(context: Context) = command(context, TopwayMedia.Command.RADIO_SEEK_UP)
     fun seekDown(context: Context) = command(context, TopwayMedia.Command.RADIO_SEEK_DOWN)
-    fun tune(context: Context, freq: Int) = command(context, TopwayMedia.Command.RADIO_TUNE, freq)
+
+    /** Tunes [freq]: a preset's by its slot, so the tuner sends its name as for the radio app; else by frequency. */
+    fun tune(context: Context, freq: Int) {
+        val preset = _presets.value.firstOrNull { it.freq == freq }
+        if (preset != null) selectPreset(context, preset.slot) else command(context, TopwayMedia.Command.RADIO_TUNE, freq)
+    }
+
+    /** Selects preset [slot] on the current band, as the radio app does when a preset is tapped ([TopwayProtocol.CH_PRESET]). */
+    fun selectPreset(context: Context, slot: Int) {
+        if (!_isSource.value) open(context)
+        write(TopwayProtocol.CH_PRESET, slot, _station.value?.band ?: 0)
+    }
+
+    /** The preset [step] away from the one playing (by slot, else by frequency); null without presets. */
+    private fun stepPreset(context: Context, step: Int): Unit? {
+        val list = _presets.value.sortedBy { it.slot }.ifEmpty { return null }
+        val s = _station.value
+        val at = list.indexOfFirst { it.slot == s?.preset }.takeIf { it >= 0 }
+            ?: list.indexOfFirst { it.freq == s?.freq }.takeIf { it >= 0 }
+        val target = if (at == null) list[if (step > 0) 0 else list.lastIndex] else list[Math.floorMod(at + step, list.size)]
+        selectPreset(context, target.slot)
+        return Unit
+    }
+
+    /** The name of the preset on [freq], when it has one: the station's RDS name may come only for a preset selected. */
+    fun presetName(freq: Int): String? = _presets.value.firstOrNull { it.freq == freq }?.name?.takeIf { it.isNotBlank() }
 
     /** The radio's own play/pause key (it mutes and unmutes the tuner); opens the radio when it isn't the source. */
     fun playPause(context: Context) {
