@@ -125,6 +125,9 @@
         <package android:name="com.tw.ac2" />
         <package android:name="com.tv.carinfoservice" />
         <package android:name="com.tw.carinfoservice" />
+        <!-- Its command service steers the Bluetooth app's music (TopwayMedia). -->
+        <package android:name="com.tw.service.xt" />
+        <package android:name="com.tw.bt" />
         <package android:name="com.reglink.services" />
         <package android:name="com.reglink.launcher4" />
         <package android:name="com.baony.avm360" />

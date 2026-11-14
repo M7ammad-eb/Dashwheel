@@ -5,15 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Binder
-import android.os.Handler
 import android.os.IBinder
 import android.os.Parcel
-import android.os.HandlerThread
 import android.os.Message
 import android.util.Log
 import com.openauto.dash.Cap
 import com.openauto.dash.DebugLog
-import com.openauto.dash.HiddenApi
 import com.openauto.dash.UnitPlatform
 import com.openauto.dash.VehicleBusSource
 import com.openauto.dash.vehicle.K
@@ -21,7 +18,6 @@ import com.openauto.dash.vehicle.Publisher
 import com.openauto.unitproto.topway.TopwayProtocol
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import java.lang.reflect.Method
 
 /**
  * The Topway TS firmware's MCU link ([TopwayProtocol]), read-only: the reverse
@@ -39,7 +35,6 @@ import java.lang.reflect.Method
  */
 internal object TopwayBus : VehicleBusSource {
     private const val TAG = "TopwayBus"
-    private const val HANDLER_TAG = "Dashwheel"
 
     private val _listening = MutableStateFlow(false)
     override val listening: StateFlow<Boolean> = _listening
@@ -52,8 +47,6 @@ internal object TopwayBus : VehicleBusSource {
 
     private var out: Publisher? = null
     private var raw: ((String, String) -> Unit)? = null
-    private var tw: Any? = null
-    private var thread: HandlerThread? = null
     private var frames = 0
     private var app: Context? = null
     private var infoBound = false
@@ -66,40 +59,20 @@ internal object TopwayBus : VehicleBusSource {
         val app = context.applicationContext
         this.app = app
         bindInfo(app)
-        val t = HandlerThread(TAG).also { it.start() }
-        thread = t
-        val handler = Handler(t.looper) { msg -> onMessage(msg); true }
-        runCatching {
-            val cls = Class.forName(TopwayProtocol.TWUTIL_CLASS)
-            val util = runCatching { cls.getConstructor().newInstance() }.getOrElse { HiddenApi.newInstance(cls) }
-            val opened = method(cls, "open", ShortArray::class.java).invoke(util, TopwayProtocol.LISTENED) as Int
-            if (opened != 0) error("open answered $opened")
-            method(cls, "start").invoke(util)
-            method(cls, "addHandler", String::class.java, Handler::class.java).invoke(util, HANDLER_TAG, handler)
-            tw = util
+        // The MCU link is shared with the radio ([TopwayLink]): the framework keeps one per app.
+        if (TopwayLink.acquire(app, mcuUser)) {
+            linked = true
             _listening.value = true
-            Log.i(TAG, "listening to the MCU through TWUtil")
-            DebugLog.note(app, "Topway MCU: listening through TWUtil (reverse, canbox frames)")
-        }.onFailure {
-            Log.w(TAG, "TWUtil is not there for Dashwheel", it)
-            DebugLog.note(app, "Topway MCU: TWUtil refused (${it.cause ?: it})")
-            t.quitSafely()
-            thread = null
         }
     }
 
+    private val mcuUser: (Message) -> Unit = { onMessage(it) }
+    private var linked = false
+
     override fun stop() {
         unbindInfo()
-        val util = tw
-        tw = null
-        if (util != null) runCatching {
-            val cls = util.javaClass
-            method(cls, "removeHandler", String::class.java).invoke(util, HANDLER_TAG)
-            method(cls, "stop").invoke(util)
-            method(cls, "close").invoke(util)
-        }
-        thread?.quitSafely()
-        thread = null
+        if (linked) TopwayLink.release(mcuUser)
+        linked = false
         out = null
         raw = null
         _listening.value = false
@@ -172,10 +145,6 @@ internal object TopwayBus : VehicleBusSource {
             return true
         }
     }
-
-    /** Public members first; the hidden-API way only when Android keeps them from Dashwheel. */
-    private fun method(cls: Class<*>, name: String, vararg types: Class<*>): Method =
-        runCatching { cls.getMethod(name, *types) }.getOrElse { HiddenApi.getDeclaredMethod(cls, name, *types) }
 
     private fun onMessage(msg: Message) {
         val o = out ?: return
