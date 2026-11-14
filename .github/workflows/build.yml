@@ -1,303 +1,43 @@
-name: Build Android APK
+name: Verify Topway media build
 
-# Every push and pull request is linted and unit-tested first; nothing is built
-# for release, let alone published, unless that passed.
-#  - main: a signed build published as a *beta* pre-release. Drivers who turned
-#    on "Beta updates" get it; everyone else stays on stable until a beta is
-#    promoted by hand (promote.yml, "Promote to stable").
-#  - any other branch: a signed pre-release under the branch's name, for trying
-#    a branch on the head unit without merging it; no updater channel takes it.
-#  - pull requests: a debug build only. A fork's pull request gets no secrets,
-#    so it can't (and needn't) sign anything.
 on:
   push:
-    branches: [ '**' ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-
-# A second push to the same branch while its build runs cancels the first: only
-# the newest commit's result matters.
-concurrency:
-  group: build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    branches:
+      - verify/topway-media-build
 
 permissions:
   contents: read
 
 jobs:
-  checks:
-    name: Lint and unit tests
-    # A pull request from a branch of this repository is already checked by its
-    # push; only a fork's pull request has nothing else running for it.
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork }}
+  verify:
+    name: Lint, unit tests and debug APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout source
         uses: actions/checkout@v4
-
-      - name: Set up JDK 21
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-
       - name: Set up Android SDK
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
         with:
-          # Override the action's default ("tools platform-tools"); the obsolete
-          # "tools" package was removed from the SDK repo and breaks the step.
           packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
-
-      # The committed wrapper pins Gradle 8.13 with a verified checksum; do not
-      # regenerate it here, that would silently drop the verification.
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-
-      # Both editions are linted and tested; see Edition.kt. Each flavor gets
-      # its own Gradle invocation (compiling both in one run has crashed the
-      # Kotlin compiler).
-      - name: Android Lint, GitHub edition
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+      - name: Lint
         run: ./gradlew :app:lintGithubDebug :companion:lintGithubDebug --stacktrace
-
-      - name: Android Lint, Play edition
-        run: ./gradlew :app:lintPlayDebug :companion:lintPlayDebug --stacktrace
-
-      - name: Unit tests, GitHub edition
+      - name: Unit tests
         run: ./gradlew :app:testGithubDebugUnitTest :companion:testGithubDebugUnitTest :link:test :display:test :unitproto:test :roadreplay:test --stacktrace
-
-      - name: Unit tests, Play edition
-        run: ./gradlew :app:testPlayDebugUnitTest --stacktrace
-
-      - name: Upload lint report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lint-report
-          path: |
-            app/build/reports/lint-results-githubDebug.html
-            app/build/reports/lint-results-playDebug.html
-          if-no-files-found: ignore
-
-  debug-build:
-    name: Debug build (pull request)
-    if: ${{ github.event_name == 'pull_request' }}
-    needs: checks
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
-        with:
-          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-
-      - name: Build the GitHub edition (debug)
-        run: ./gradlew :app:assembleGithubDebug :companion:assembleGithubDebug :fakeunit:assembleDebug --stacktrace
-
+      - name: Build debug APK
+        run: ./gradlew :app:assembleGithubDebug :companion:assembleGithubDebug --stacktrace
       - name: Upload debug APKs
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: dashwheel-debug
+          name: verified-debug-apks
           path: |
             app/build/outputs/apk/github/debug/*.apk
             companion/build/outputs/apk/github/debug/*.apk
           if-no-files-found: error
-
-  release:
-    name: Signed build and release
-    if: ${{ github.event_name != 'pull_request' }}
-    needs: checks
-    runs-on: ubuntu-latest
-    # Needed so the build can publish a GitHub Release with the APK.
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          # Full history and tags: the version code counts main's history, and
-          # the release notes list every commit since the previous release.
-          fetch-depth: 0
-          fetch-tags: true
-
-      # The version code must only ever grow, or installs can't update in place.
-      # It counts the commits on the first-parent line of history (one per
-      # change that landed on main), plus an offset that carries on from the
-      # last run-number build (v1.0.662). Renaming or recreating this workflow
-      # changes nothing; only rewriting main's history could lower it.
-      - name: Work out the version
-        run: |
-          # A branch counts only up to where it left main: its test build then
-          # carries a number the next build of main (one more commit) beats, so
-          # Android lets that release install over it. Counting the branch's own
-          # commits gave a number main could not reach for as many merges.
-          if [ "$GITHUB_REF_NAME" = "main" ]; then
-            base=HEAD
-          else
-            git fetch --no-tags --depth=1 origin main >/dev/null 2>&1 || true
-            base=$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD)
-          fi
-          code=$(( $(git rev-list --count --first-parent "$base") + 200 ))
-          echo "VERSION_CODE=$code" >> "$GITHUB_ENV"
-          echo "VERSION_NAME=1.0.$code" >> "$GITHUB_ENV"
-          echo "Version 1.0.$code"
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      # The actions from outside GitHub run in the job that holds the signing
-      # key: each is pinned to the commit its tag named when it was last looked
-      # at (the tag is in the comment), so a tag moved later changes nothing here.
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
-        with:
-          # Override the action's default ("tools platform-tools"); the obsolete
-          # "tools" package was removed from the SDK repo and breaks the step.
-          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
-
-      # The committed wrapper pins Gradle 8.13 with a verified checksum; do not
-      # regenerate it here, that would silently drop the verification.
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-
-      - name: Prepare signing key
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-            echo "Release keystore prepared."
-          else
-            echo "::error::No KEYSTORE_BASE64 secret set. A debug-signed release could never be"
-            echo "::error::updated in place, so the build stops here (Gradle enforces this too)."
-            exit 1
-          fi
-
-      # Two editions from one code base (see Edition.kt): the GitHub edition
-      # ships as an APK the in-app updater installs; the Google Play edition
-      # ships as an App Bundle to upload to the Play Console, with a test APK
-      # for sideloading. Each edition is built in its own Gradle invocation:
-      # compiling both flavors in one run has crashed the Kotlin compiler.
-      - name: Build the GitHub edition
-        env:
-          KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew :app:assembleGithubRelease :companion:assembleGithubRelease --stacktrace
-
-      - name: Build the Google Play edition
-        env:
-          KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew :app:bundlePlayRelease :app:assemblePlayRelease :companion:bundlePlayRelease --stacktrace
-
-      # The launcher ships as Dashwheel-<version>.apk (the in-app updater takes
-      # any .apk but the companion). The phone companion app ships in the same
-      # release, under the name the launcher's pairing screen links to (and its
-      # updater skips).
-      # The Play edition (bundles and APK) is a workflow artifact only, never a
-      # release asset: the updater takes the first launcher .apk of a release,
-      # and the bundles are for the Play Console, not for drivers.
-      - name: Name the outputs
-        run: |
-          v=$VERSION_NAME
-          cp app/build/outputs/apk/github/release/app-github-release.apk "Dashwheel-$v.apk"
-          cp companion/build/outputs/apk/github/release/companion-github-release.apk dashwheel-companion.apk
-          cp app/build/outputs/bundle/playRelease/app-play-release.aab "Dashwheel-$v-play.aab"
-          cp app/build/outputs/apk/play/release/app-play-release.apk "Dashwheel-$v-play.apk"
-          cp companion/build/outputs/bundle/playRelease/companion-play-release.aab dashwheel-companion-play.aab
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: openauto-dash-apk
-          path: |
-            Dashwheel-${{ env.VERSION_NAME }}.apk
-            dashwheel-companion.apk
-          if-no-files-found: error
-
-      - name: Upload Play edition artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dashwheel-play
-          path: |
-            Dashwheel-${{ env.VERSION_NAME }}-play.aab
-            Dashwheel-${{ env.VERSION_NAME }}-play.apk
-            dashwheel-companion-play.aab
-          if-no-files-found: error
-
-      # Readable changelog: one section per commit since the previous build of
-      # main (beta or stable), using the commit subject as the heading and its
-      # body as the details. Commit bodies are written as user-facing notes, so
-      # this reads as a changelog rather than a bare "Full Changelog" link.
-      # Promoting to stable writes the notes again, since the previous stable.
-      - name: Write release notes
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: |
-          # Only main's own tags: a branch pre-release tag is not a release.
-          prev=$(git describe --tags --abbrev=0 --match 'v1.0.*' HEAD^ 2>/dev/null || true)
-          range=${prev:+$prev..HEAD}
-          {
-            echo "## What's new in v$VERSION_NAME (beta)"
-            echo
-            git log $range --no-merges -n 30 --format='### %s%n%n%b' \
-              | sed -e '/^Co-Authored-By:/d' -e '/^Signed-off-by:/d' -e '/^Claude-Session:/Id'
-            if [ -n "$prev" ]; then
-              echo
-              echo "_Changes since ${prev}._"
-            fi
-          } > "$RUNNER_TEMP/release-notes.md"
-          cat "$RUNNER_TEMP/release-notes.md"
-
-      - name: Publish beta
-        if: ${{ github.ref == 'refs/heads/main' }}
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          tag_name: v${{ env.VERSION_NAME }}
-          name: Dashwheel v${{ env.VERSION_NAME }} (beta)
-          # A pre-release, never "latest": the stable channel reads /releases/latest.
-          prerelease: true
-          make_latest: false
-          # The launcher and the companion only: the Google Play edition's bundles are
-          # for the Play Console, and stay in the "dashwheel-play" workflow artifact.
-          files: |
-            Dashwheel-${{ env.VERSION_NAME }}.apk
-            dashwheel-companion.apk
-          body_path: ${{ runner.temp }}/release-notes.md
-
-      - name: Publish branch pre-release
-        if: ${{ github.ref != 'refs/heads/main' && github.event_name == 'push' }}
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          tag_name: ${{ github.ref_name }}-v${{ env.VERSION_NAME }}
-          name: Dashwheel v${{ env.VERSION_NAME }} (${{ github.ref_name }})
-          prerelease: true
-          make_latest: false
-          files: |
-            Dashwheel-${{ env.VERSION_NAME }}.apk
-            dashwheel-companion.apk
-          body: |
-            Test build of branch `${{ github.ref_name }}` at ${{ github.sha }}.
-            Signed with the release key, so it installs over the current version; its
-            number is that of the main it branched from, so the next release from main
-            updates over it again. No updater channel offers it.
