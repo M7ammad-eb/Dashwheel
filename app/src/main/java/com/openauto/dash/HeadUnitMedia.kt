@@ -13,6 +13,8 @@ import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 import com.openauto.dash.link.NowPlaying
+import com.openauto.dash.unit.TopwayRadio
+import com.openauto.unitproto.topway.TopwayProtocol
 import androidx.core.content.ContextCompat
 import java.util.concurrent.CopyOnWriteArraySet
 
@@ -119,6 +121,13 @@ object HeadUnitMedia {
     fun start(context: Context) {
         if (started) return
         val app = context.applicationContext
+        // A Topway unit's radio: its station from the MCU (TopwayRadio), told on like the QF radio's broadcast.
+        if (TopwayRadio.present(app)) {
+            started = true
+            TopwayRadio.addListener { main.post { tell() } }
+            TopwayRadio.start(app)
+            return
+        }
         if (!UnitPlatform.hasPackage(app, BT_PACKAGE) && !UnitPlatform.hasPackage(app, RADIO_PACKAGE)) return
         started = true
         val filter = IntentFilter().apply {
@@ -132,10 +141,14 @@ object HeadUnitMedia {
     fun addListener(listener: () -> Unit) = listeners.add(listener)
     fun removeListener(listener: () -> Unit) = listeners.remove(listener)
 
-    fun isStock(pkg: String?): Boolean = pkg == BT_PACKAGE || pkg?.startsWith("com.android.fmradio") == true
+    fun isStock(pkg: String?): Boolean = pkg == BT_PACKAGE || pkg?.startsWith("com.android.fmradio") == true || pkg == TOPWAY_RADIO
+
+    /** Topway's radio, which has no media session: shown from [TopwayRadio] while it is the unit's source. */
+    const val TOPWAY_RADIO = TopwayProtocol.RADIO_PACKAGE
 
     /** The head unit's current audio source (a package name), as its framework records it. */
     fun source(): String? = systemProperty("persist.sys.qf.last_audio_src")?.takeIf { it.isNotBlank() }
+        ?: TOPWAY_RADIO.takeIf { TopwayRadio.isSource.value }
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -181,6 +194,18 @@ object HeadUnitMedia {
                 artwork = p?.art
             )
         }
+        pkg == TOPWAY_RADIO -> TopwayRadio.station.value?.let { s ->
+            // The station's RDS name, else its preset's: tuned other than by its preset, the name may not come.
+            val name = s.name ?: TopwayRadio.presetName(s.freq)
+            val r = RadioStation(s.freq, TopwayProtocol.dashBand(s.band), name)
+            val frequency = radioLabel(r)
+            MediaState(
+                title = name ?: frequency,
+                artist = s.text ?: listOfNotNull(name?.let { frequency }, bandLabel(r.band)).joinToString(" · "),
+                isPlaying = TopwayRadio.isSource.value,
+                hasMedia = true
+            )
+        }
         isStock(pkg) -> radio?.let { r ->
             val frequency = radioLabel(r)
             val name = r.name ?: rdsName
@@ -199,6 +224,7 @@ object HeadUnitMedia {
 
     fun playPause(context: Context, pkg: String) {
         if (pkg == BT_PACKAGE) return btCommand(context, BT_TOGGLE)
+        if (pkg == TOPWAY_RADIO) return TopwayRadio.playPause(context)
         // The radio has no pause: closing its screen stops it, opening it plays.
         if (radioAlive()) context.sendBroadcast(Intent(RADIO_CLOSE)) else openRadio(context)
     }
@@ -206,11 +232,13 @@ object HeadUnitMedia {
     /** [session]: the radio's own media session when one is listed, for [stepRadio]'s media key. */
     fun next(context: Context, pkg: String, session: MediaController? = null) {
         if (pkg == BT_PACKAGE) return btCommand(context, BT_NEXT)
+        if (pkg == TOPWAY_RADIO) return TopwayRadio.next(context)
         if (radioAlive()) stepRadio(context, RADIO_NEXT, KeyEvent.KEYCODE_MEDIA_NEXT, session) else openRadio(context)
     }
 
     fun previous(context: Context, pkg: String, session: MediaController? = null) {
         if (pkg == BT_PACKAGE) return btCommand(context, BT_PREVIOUS)
+        if (pkg == TOPWAY_RADIO) return TopwayRadio.previous(context)
         if (radioAlive()) stepRadio(context, RADIO_PREVIOUS, KeyEvent.KEYCODE_MEDIA_PREVIOUS, session) else openRadio(context)
     }
 

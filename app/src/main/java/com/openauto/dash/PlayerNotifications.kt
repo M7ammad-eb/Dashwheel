@@ -1,6 +1,7 @@
 package com.openauto.dash
 
 import android.app.Notification
+import android.media.session.MediaSession
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import java.util.concurrent.ConcurrentHashMap
@@ -20,10 +21,19 @@ object PlayerNotifications {
     data class Said(val key: String, val title: String, val text: String)
 
     private val said = ConcurrentHashMap<String, Said>()
+    /** Package → the media session its notification names, and that notification's key. */
+    private val sessions = ConcurrentHashMap<String, Pair<String, MediaSession.Token>>()
     private val listeners = CopyOnWriteArraySet<(String) -> Unit>()
 
     /** The latest player notification of [pkg], or null. */
     fun of(pkg: String?): Said? = pkg?.let { said[it] }
+
+    /**
+     * The media sessions players' notifications name, by package. Some units'
+     * system lists a new player's session late, or not at all until another
+     * player changes ([CarMediaController] finds them here too).
+     */
+    fun sessionTokens(): Map<String, MediaSession.Token> = sessions.mapValues { it.value.second }
 
     /** Told (main thread) the package whose player notification changed. */
     fun addListener(listener: (String) -> Unit) = listeners.add(listener)
@@ -31,10 +41,13 @@ object PlayerNotifications {
 
     fun onPosted(sbn: StatusBarNotification) {
         val n = sbn.notification ?: return
+        val token = sessionToken(n)
+        val newSession = token != null && sessions.put(sbn.packageName, sbn.key to token)?.second != token
         // A player's notification: the media kind, or one that stays up while it plays.
         val player = n.category == Notification.CATEGORY_TRANSPORT ||
             n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION) || sbn.isOngoing
         if (!player) return
+        if (newSession) tell(sbn.packageName)
         val title = n.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim().orEmpty()
         val text = n.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim().orEmpty()
         if (title.isEmpty() && text.isEmpty()) return
@@ -43,12 +56,23 @@ object PlayerNotifications {
     }
 
     fun onRemoved(sbn: StatusBarNotification) {
+        if (sessions[sbn.packageName]?.first == sbn.key) {
+            sessions.remove(sbn.packageName)
+            if (said[sbn.packageName]?.key != sbn.key) tell(sbn.packageName)
+        }
         if (said[sbn.packageName]?.key != sbn.key) return
         said.remove(sbn.packageName)
         tell(sbn.packageName)
     }
 
-    fun clear() = said.clear()
+    fun clear() {
+        said.clear()
+        sessions.clear()
+    }
+
+    @Suppress("DEPRECATION") // the typed getParcelable is API 33; the app runs from 28
+    private fun sessionToken(n: Notification): MediaSession.Token? =
+        runCatching { n.extras.getParcelable<MediaSession.Token>(Notification.EXTRA_MEDIA_SESSION) }.getOrNull()
 
     private fun tell(pkg: String) = listeners.forEach { runCatching { it(pkg) }.onFailure { e -> Log.w(TAG, "listener failed", e) } }
 }
